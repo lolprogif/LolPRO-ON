@@ -31,13 +31,13 @@ footer{text-align:center;color:#91a0a3;font-size:12px;padding:28px 0 8px}
 </header>
 <h2>Escolha sua plataforma</h2>
 <section class="cards">
-<article class="card"><div class="icon">🖥️</div><h3>Windows</h3><p>Baixe o pacote para computador e siga as instruções de instalação.</p><a class="btn disabled" id="windows" href="#" aria-disabled="true">Download para PC</a></article>
-<article class="card"><div class="icon">📱</div><h3>Android</h3><p>Baixe o APK gratuito. O Android solicitará confirmação para instalar.</p><a class="btn disabled" id="android" href="#" aria-disabled="true">Download para Android</a></article>
+<article class="card"><div class="icon">🖥️</div><h3>Windows</h3><p>Baixe o pacote inicial. Depois, atualize pelo botão dentro do jogo.</p><a class="btn disabled" id="windows" href="#" aria-disabled="true">Download para PC</a></article>
+<article class="card"><div class="icon">📱</div><h3>Android</h3><p>Baixe o APK quando a publicação Android estiver configurada. O Android solicitará confirmação para instalar.</p><a class="btn disabled" id="android" href="#" aria-disabled="true">Download para Android</a></article>
 </section>
-<p class="small" id="version">Versão: aguardando primeira publicação</p>
-<section class="info"><h3>Como instalar</h3><p>Quando os pacotes oficiais forem publicados, os botões acima serão ativados. No Windows, extraia o pacote em uma pasta. No Android, permita a instalação do APK quando o sistema solicitar.</p></section>
+<p class="small" id="version">Versão: consultando publicação</p>
+<section class="info"><h3>Como instalar</h3><p>No primeiro acesso, baixe e extraia o pacote do Windows em uma pasta e abra INICIAR_LOLPRO.bat. Depois, as atualizações do Windows podem ser feitas pelo botão Atualizar jogo dentro do próprio jogo. No Android, instale o APK quando estiver disponível e confirme as atualizações solicitadas pelo sistema.</p></section>
 <footer>© LolPRO-ON · Distribuição gratuita</footer>
 </main>
 <script>
-(async()=>{const status=document.getElementById('status');try{const r=await fetch('./latest.json',{cache:'no-store'});if(!r.ok)throw new Error('manifest');const m=await r.json();document.getElementById('version').textContent='Versão: '+(m.version||'em preparação');for(const [id,key] of [['windows','windows_url'],['android','android_url']]){const a=document.getElementById(id);if(m[key]){a.href=m[key];a.classList.remove('disabled');a.removeAttribute('aria-disabled')}}const ready=m.windows_url&&m.android_url;status.textContent=ready?'Downloads gratuitos disponíveis · v'+m.version:'Primeira versão em preparação — downloads serão liberados aqui';}catch(e){status.textContent='Downloads gratuitos serão liberados nesta página após a publicação da primeira versão.'}})();
+(async()=>{const status=document.getElementById('status');try{const r=await fetch('./latest.json',{cache:'no-store'});if(!r.ok)throw new Error('manifest');const m=await r.json();document.getElementById('version').textContent='Versão: '+(m.version||'em preparação');for(const [id,key] of [['windows','windows_url'],['android','android_url']]){const a=document.getElementById(id);if(m[key]){a.href=m[key];a.classList.remove('disabled');a.removeAttribute('aria-disabled')}}const ready=!!m.windows_url;status.textContent=ready?'Download para Windows disponível · v'+m.version:'Primeira versão em preparação — downloads serão liberados aqui';}catch(e){status.textContent='Downloads gratuitos serão liberados nesta página após a publicação da primeira versão.'}})();
 </script></body></html>
