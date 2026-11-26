@@ -26,6 +26,8 @@ var loading := false
 var progress: ProgressBar
 var loading_label: Label
 var fade: ColorRect
+var preview_class := 0
+var preview_gender := 0
 var preview_stage: Node3D
 var preview_actor: Node3D
 var preview_camera: Camera3D
@@ -322,8 +324,17 @@ func show_selection(items: Array, legacy: String):
 		genders.select(1 if profile.get("gender","Masculino") == "Feminino" else 0)
 		classes.disabled = slot_names.has(index)
 		genders.disabled = slot_names.has(index)
+		preview_class = classes.selected
+		preview_gender = genders.selected
+		play_preview("Idle")
 		preview.text = "Aventureiro • "+character.text if slot_names.has(index) else "Novo aventureiro"
 	slots.item_selected.connect(choose)
+	classes.item_selected.connect(func(index: int):
+		preview_class = index
+		play_preview("Idle"))
+	genders.item_selected.connect(func(index: int):
+		preview_gender = index
+		play_preview("Idle"))
 	choose.call(0)
 	button(v,"Entrar no mundo",func():
 		if character.text.strip_edges().length()<3:
@@ -367,6 +378,16 @@ func start_loading():
 	slogan.text = "Sua jornada começa aqui • Evolua até o nível 99"
 	slogan.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(slogan)
+	var promo := Label.new()
+	promo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	promo.add_theme_font_size_override("font_size",22)
+	v.add_child(promo)
+	var promo_tween := create_tween().set_loops()
+	for phrase in ["QUATRO CLASSES • UM DESTINO","EVOLUA SEU DRAGÃO ATÉ O NÍVEL 99","EXPLORE • EVOLUA • CONQUISTE"]:
+		promo_tween.tween_callback(func(): promo.text = phrase)
+		promo_tween.tween_property(promo,"modulate:a",1.0,0.35).from(0.0)
+		promo_tween.tween_interval(1.0)
+		promo_tween.tween_property(promo,"modulate:a",0.0,0.3)
 	loading_label = Label.new()
 	loading_label.text = "A jornada de "+character.text+" começa..."
 	loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -424,6 +445,14 @@ func play_preview(state: String):
 	if is_instance_valid(preview_actor): preview_actor.queue_free()
 	preview_actor = scene.instantiate() as Node3D
 	preview_stage.add_child(preview_actor)
+	preview_actor.scale = Vector3(0.86,0.94,0.86) if preview_gender == 1 else Vector3.ONE
+	var palette := [Color("a5a9b5"),Color("63263e"),Color("263a49"),Color("b99a58")]
+	for mesh_node in preview_actor.find_children("*","MeshInstance3D",true,false):
+		var mesh_instance := mesh_node as MeshInstance3D
+		var material := StandardMaterial3D.new()
+		material.albedo_color = palette[preview_class]
+		material.metallic = 0.55 if preview_class < 2 else 0.15
+		mesh_instance.material_override = material
 	for node in preview_actor.find_children("*","AnimationPlayer",true,false):
 		var ap: AnimationPlayer = node
 		for clip in ap.get_animation_list():
