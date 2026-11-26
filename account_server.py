@@ -17,7 +17,7 @@ with sqlite3.connect(DB) as db:
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
 with sqlite3.connect(DB) as db:
- db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
+ db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 1, PRIMARY KEY(username,slot,kind))')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -100,7 +100,7 @@ class Handler(BaseHTTPRequestHandler):
        elif cmd=='armor': me['armor']=1-me['armor']
        elif isinstance(cmd,str) and cmd.startswith('upgrade:'):
         kind=cmd.split(':',1)[1]
-        rank=ranks.get(kind,0)
+        rank=max(1,ranks.get(kind,1))
         cost=25*(rank+1)
         if kind in (*kinds,'weapon','armor') and rank<9 and me['coins']>=cost:
          me['coins']-=cost
@@ -123,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
          if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
-          target['hp']=max(0,target['hp']-max(1,10+(5+ranks.get('weapon',0))*me['weapon']-(3+target.get('ranks',{}).get('armor',0))*target.get('armor',0)))
+          target['hp']=max(0,target['hp']-max(1,10+(5+max(1,ranks.get('weapon',1))-1)*me['weapon']-(3+max(1,target.get('ranks',{}).get('armor',1))-1)*target.get('armor',0)))
           if target['hp']==0:
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
