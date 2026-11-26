@@ -7,6 +7,12 @@ var character: LineEdit
 var status: Label
 var req := HTTPRequest.new()
 var update_req := HTTPRequest.new()
+var update_download_req := HTTPRequest.new()
+var update_download_path := ""
+var update_latest := ""
+var update_download_active := false
+var update_progress_box: VBoxContainer
+var update_progress_label: Label
 var remember_user: CheckBox
 var create_window: Window
 var register_user: LineEdit
@@ -43,6 +49,9 @@ func _ready():
 	add_child(update_req)
 	update_req.timeout = 20
 	update_req.request_completed.connect(update_manifest_done)
+	add_child(update_download_req)
+	update_download_req.timeout = 300
+	update_download_req.request_completed.connect(update_download_done)
 
 	var bg := ColorRect.new()
 	bg.color = Color("101b25")
@@ -179,6 +188,18 @@ func _ready():
 	update_button.custom_minimum_size.y = 40
 	v.add_child(update_button)
 	update_button.pressed.connect(check_for_updates)
+	update_progress_box = VBoxContainer.new()
+	update_progress_box.visible = false
+	v.add_child(update_progress_box)
+	update_progress_label = Label.new()
+	update_progress_label.text = "Preparando atualização... 0%"
+	update_progress_box.add_child(update_progress_label)
+	progress = ProgressBar.new()
+	progress.min_value = 0
+	progress.max_value = 100
+	progress.value = 0
+	progress.show_percentage = true
+	update_progress_box.add_child(progress)
 
 	var download_button := Button.new()
 	download_button.text = "Baixar jogo / Download"
@@ -253,7 +274,7 @@ func submit_registration():
 	send("register", {"username":register_user.text, "email":register_email.text, "password":register_password.text})
 
 func check_for_updates():
-	if update_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED: return
+	if update_req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED or update_download_active: return
 	status.text = "Verificando atualizações..."
 	var err := update_req.request(UPDATE_MANIFEST, ["Cache-Control: no-cache"])
 	if err != OK: status.text = "Não foi possível consultar as atualizações."
@@ -287,19 +308,53 @@ func update_manifest_done(result: int, code: int, _headers: PackedStringArray, b
 		OS.shell_open("https://lolprogif.github.io/LolPRO-ON/")
 
 func start_windows_update(download_url: String, latest: String):
+	if update_download_active:
+		return
+	update_latest = latest
+	update_download_path = OS.get_user_data_dir().path_join("LolPRO-ON-update.zip")
+	update_progress_box.visible = true
+	progress.value = 0
+	update_progress_label.text = "Baixando v%s... 0%%" % latest
+	status.text = "Baixando a atualização. Você pode continuar nesta tela."
+	update_download_active = true
+	update_download_req.download_file = update_download_path
+	var err := update_download_req.request(download_url, ["Cache-Control: no-cache"])
+	if err != OK:
+		update_download_active = false
+		update_progress_label.text = "Falha ao iniciar o download."
+		status.text = "Não foi possível iniciar o download. Tente novamente."
+		update_download_req.download_file = ""
+
+func update_download_done(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray):
+	update_download_active = false
+	update_download_req.download_file = ""
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not FileAccess.file_exists(update_download_path):
+		update_progress_label.text = "Falha no download. Tente novamente."
+		status.text = "A atualização não foi baixada. O jogo continua aberto."
+		return
+	var file := FileAccess.open(update_download_path, FileAccess.READ)
+	if file == null or file.get_length() < 1024:
+		update_progress_label.text = "Pacote inválido."
+		status.text = "O arquivo recebido está incompleto. O jogo continua aberto."
+		return
+	file.close()
+	progress.value = 100
+	update_progress_label.text = "Download concluído • 100%%. Aplicando atualização..."
 	var exe_path := OS.get_executable_path()
 	var install_dir := exe_path.get_base_dir()
 	var exe_name := exe_path.get_file()
 	var updater := install_dir.path_join("update_windows.ps1")
 	if not FileAccess.file_exists(updater):
-		status.text = "Atualizador não encontrado nesta instalação. Baixe o pacote completo."
+		update_progress_label.text = "Atualizador não encontrado."
+		status.text = "Atualizador não encontrado. Baixe o pacote completo."
 		return
-	var args := ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", updater, "-ZipUrl", download_url, "-InstallDir", install_dir, "-ExeName", exe_name]
+	var args := ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", updater, "-ZipPath", update_download_path, "-InstallDir", install_dir, "-ExeName", exe_name]
 	var pid := OS.create_process("powershell.exe", args)
 	if pid <= 0:
-		status.text = "Não foi possível iniciar o atualizador."
+		update_progress_label.text = "Não foi possível aplicar."
+		status.text = "Falha ao iniciar a instalação. O jogo continua aberto."
 		return
-	status.text = "Atualizando para v%s. O jogo será fechado e reaberto." % latest
+	status.text = "Atualização baixada. O jogo será reiniciado automaticamente para substituir os arquivos."
 	get_tree().quit()
 func find_server():
 	if not OS.has_feature("mobile"):
@@ -315,6 +370,12 @@ func find_server():
 	discovery_left = 4.0
 	status.text = "Procurando servidor na rede local..."
 func _process(delta):
+	if update_download_active:
+		var total := update_download_req.get_body_size()
+		var received := update_download_req.get_downloaded_bytes()
+		if total > 0:
+			progress.value = clampf(float(received) / float(total) * 100.0, 0.0, 99.0)
+			update_progress_label.text = "Baixando v%s... %d%%" % [update_latest, int(progress.value)]
 	if loading:
 		var values := []
 		var state := ResourceLoader.load_threaded_get_status("res://World.tscn",values)

@@ -1,5 +1,6 @@
 param(
-  [Parameter(Mandatory=$true)][string]$ZipUrl,
+  [string]$ZipUrl = "",
+  [string]$ZipPath = "",
   [Parameter(Mandatory=$true)][string]$InstallDir,
   [Parameter(Mandatory=$true)][string]$ExeName
 )
@@ -8,8 +9,9 @@ $zip = Join-Path $env:TEMP "LolPRO-ON-update.zip"
 $tmp = Join-Path $env:TEMP "LolPRO-ON-update"
 $log = Join-Path $env:TEMP "LolPRO-ON-update-error.txt"
 try {
-  # Baixa antes de fechar o jogo ou solicitar permissao administrativa.
-  Invoke-WebRequest -Uri $ZipUrl -OutFile $zip
+  # O jogo baixa o pacote enquanto permanece aberto; este helper só instala após o encerramento automático.
+  if (-not [string]::IsNullOrWhiteSpace($ZipPath)) { $zip = $ZipPath }
+  else { Invoke-WebRequest -Uri $ZipUrl -OutFile $zip }
   if (-not (Test-Path $zip) -or (Get-Item $zip).Length -lt 1024) {
     throw "O pacote baixado esta vazio ou incompleto."
   }
@@ -19,7 +21,7 @@ try {
   $principal = [Security.Principal.WindowsPrincipal]::new($identity)
   if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath,
-      "-ZipUrl", $ZipUrl, "-InstallDir", $InstallDir, "-ExeName", $ExeName)
+      "-ZipUrl", $ZipUrl, "-ZipPath", $ZipPath, "-InstallDir", $InstallDir, "-ExeName", $ExeName)
     $elevated = Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -PassThru
     exit 0
   }
