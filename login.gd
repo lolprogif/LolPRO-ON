@@ -8,6 +8,7 @@ var status: Label
 var req := HTTPRequest.new()
 var action := ""
 var token := ""
+var settings := ConfigFile.new()
 var language: OptionButton
 var title_label: Label
 func _ready():
@@ -44,10 +45,13 @@ func _ready():
 	for s in ["Brasil • Português", "International • English", "España • Español"]: language.add_item(s)
 	v.add_child(language)
 	endpoint = field(v,"Servidor / Server","http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080")
+	settings.load("user://login.cfg")
+	endpoint.text = str(settings.get_value("login","server",endpoint.text))
 	var channel := Label.new()
 	channel.text = "Servidor de teste / Test server • CH1"
 	v.add_child(channel)
 	user = field(v,"Usuário / Username")
+	user.text = str(settings.get_value("login","username",""))
 	email = field(v,"E-mail (cadastro / registration)")
 	password = field(v,"Senha / Password")
 	password.secret = true
@@ -61,7 +65,10 @@ func _ready():
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Teste local • use uma senha exclusiva de teste."
 	v.add_child(status)
-	button(v,"Modo offline / Offline",func(): get_tree().change_scene_to_file("res://World.tscn"))
+	button(v,"Verificar atualizações",func(): OS.shell_open("https://github.com/lolprogif/LolPRO-ON/releases"))
+	button(v,"Modo offline / Offline",func():
+		get_tree().remove_meta("online_endpoint")
+		get_tree().change_scene_to_file("res://World.tscn"))
 func field(v: VBoxContainer,hint: String,value: String = "") -> LineEdit:
 	var f := LineEdit.new()
 	f.placeholder_text = hint
@@ -90,7 +97,12 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 	if action == "register": status.text = "Conta criada! Faça login / Account created"
 	elif action == "login":
 		token = d.token
+		settings.set_value("login","server",endpoint.text.strip_edges())
+		settings.set_value("login","username",user.text)
+		settings.save("user://login.cfg")
 		character.text = d.character
 		password.clear()
 		status.text = "Escolha seu personagem / Choose character"
-	elif action == "character": get_tree().change_scene_to_file("res://World.tscn")
+	elif action == "character":
+		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
+		get_tree().change_scene_to_file("res://World.tscn")
