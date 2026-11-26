@@ -25,6 +25,9 @@ var loading := false
 var progress: ProgressBar
 var loading_label: Label
 var fade: ColorRect
+var preview_stage: Node3D
+var preview_actor: Node3D
+var preview_camera: Camera3D
 var settings := ConfigFile.new()
 var language: OptionButton
 var title_label: Label
@@ -301,6 +304,7 @@ func show_selection(items: Array, legacy: String):
 	heading.text = "LolPRO-ON  |  Escolha seu personagem"
 	heading.add_theme_font_size_override("font_size",26)
 	v.add_child(heading)
+	build_preview(v)
 	var slots := OptionButton.new()
 	for i in range(4):
 		slots.add_item("%d  •  %s" % [i+1,slot_names.get(i,"Criar personagem")],i)
@@ -331,6 +335,12 @@ func show_selection(items: Array, legacy: String):
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(status)
 func start_loading():
+	if is_instance_valid(preview_actor):
+		play_preview("Walking")
+		var cinematic := create_tween().set_parallel(true)
+		cinematic.tween_property(preview_actor,"position:z",1.1,1.2)
+		cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),1.2)
+		await cinematic.finished
 	selection.hide()
 	fade = ColorRect.new()
 	fade.color = Color("101b29")
@@ -355,3 +365,52 @@ func start_loading():
 		loading = true
 	else:
 		loading_label.text = "Não foi possível iniciar o carregamento."
+
+func build_preview(parent: VBoxContainer):
+	var container := SubViewportContainer.new()
+	container.custom_minimum_size = Vector2(440,260)
+	container.stretch = true
+	parent.add_child(container)
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	container.add_child(viewport)
+	preview_stage = Node3D.new()
+	viewport.add_child(preview_stage)
+	var env := WorldEnvironment.new()
+	env.environment = Environment.new()
+	env.environment.background_mode = Environment.BG_COLOR
+	env.environment.background_color = Color("182332")
+	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.environment.ambient_light_color = Color("aabbdc")
+	env.environment.ambient_light_energy = 0.7
+	preview_stage.add_child(env)
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-35,-35,0)
+	preview_stage.add_child(light)
+	var pedestal := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 1.0
+	cylinder.bottom_radius = 1.15
+	cylinder.height = 0.2
+	pedestal.mesh = cylinder
+	pedestal.position.y = -0.1
+	preview_stage.add_child(pedestal)
+	preview_camera = Camera3D.new()
+	preview_stage.add_child(preview_camera)
+	preview_camera.position = Vector3(0,1.35,4.2)
+	preview_camera.look_at(Vector3(0,0.95,0))
+	preview_camera.current = true
+	play_preview("Idle")
+func play_preview(state: String):
+	var scene = load("res://assets/"+state+".fbx")
+	if not scene is PackedScene: return
+	if is_instance_valid(preview_actor): preview_actor.queue_free()
+	preview_actor = scene.instantiate() as Node3D
+	preview_stage.add_child(preview_actor)
+	for node in preview_actor.find_children("*","AnimationPlayer",true,false):
+		var ap: AnimationPlayer = node
+		for clip in ap.get_animation_list():
+			if clip == "RESET": continue
+			ap.play(clip)
+			break
