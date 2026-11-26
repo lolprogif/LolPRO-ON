@@ -12,6 +12,8 @@ var stats_label: Label
 var weapon_button: Button
 var armor_button: Button
 var gear_buttons := {}
+var upgrade_buttons := {}
+var inventory_items := {}
 var gear_names := {"helmet":"Capacete","boots":"Botas","gloves":"Luvas","necklace":"Colar","ring":"Anel","bracelet":"Pulseira","shield":"Escudo"}
 var potions := 5
 var hp := 80
@@ -117,7 +119,7 @@ func _ready():
 		gear_buttons[kind] = button(equipment,gear_names[kind],func(): item_action(kind))
 	money = label(inv,"Moedas: 100")
 	stock = button(inv,"Poção x5",use_potion)
-	pages(inv,5,5,40)
+	build_item_inventory(inv)
 	pages(window("Especial",Vector2(310,410)),8,5,40)
 	var c := window("Personagem",Vector2(300,350))
 	stats_label = label(c,"Nível 1 • EXP 0 / 100")
@@ -249,6 +251,13 @@ func toggle(n: String):
 	if windows.has(n):
 		windows[n].visible = not windows[n].visible
 func apply_progress(data: Dictionary):
+	var ranks: Dictionary = data.get("ranks",{})
+	for key in upgrade_buttons:
+		var rank := int(ranks.get(key,0))
+		var rarity := "Comum" if rank<3 else ("Raro" if rank<6 else ("Épico" if rank<9 else "Lendário"))
+		upgrade_buttons[key].text = "%s +%d • %s" % [inventory_items[key],rank,rarity]
+		upgrade_buttons[key].tooltip_text = "Melhorar: %d moedas" % (25*(rank+1))
+		upgrade_buttons[key].disabled = rank>=9
 	level = int(data.get("level",1))
 	xp = int(data.get("xp",0))
 	coins = int(data.get("coins",100))
@@ -286,3 +295,33 @@ func _unhandled_key_input(event):
 	if event.pressed and not event.echo:
 		if event.keycode == KEY_I: toggle("Inventário")
 		if event.keycode == KEY_ESCAPE: toggle("Opções")
+
+func build_item_inventory(parent: Node):
+	inventory_items = gear_names.duplicate()
+	inventory_items["weapon"] = "Espada"
+	inventory_items["armor"] = "Armadura"
+	var tabs := TabContainer.new()
+	tabs.custom_minimum_size.y = 180
+	parent.add_child(tabs)
+	for category in ["Armas","Proteção","Acessórios"]:
+		var scroll := ScrollContainer.new()
+		scroll.name = category
+		tabs.add_child(scroll)
+		var list := VBoxContainer.new()
+		scroll.add_child(list)
+		for key in inventory_items:
+			if category == "Armas" and key != "weapon": continue
+			if category == "Proteção" and not key in ["armor","helmet","boots","gloves","shield"]: continue
+			if category == "Acessórios" and not key in ["ring","necklace","bracelet"]: continue
+			var kind: String = key
+			var item = preload("res://inventory_item.gd").new()
+			item.kind = kind
+			item.text = inventory_items[kind]
+			item.pressed.connect(func(): item_action(kind))
+			list.add_child(item)
+			upgrade_buttons[kind] = button(list,"Melhorar "+inventory_items[kind],func(): item_action("upgrade:"+kind))
+	var target = preload("res://inventory_item.gd").new()
+	target.text = "Arraste um item aqui para equipar / desequipar"
+	target.drop_target = true
+	target.equip_requested.connect(item_action)
+	parent.add_child(target)
