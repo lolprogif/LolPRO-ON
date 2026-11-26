@@ -58,20 +58,7 @@ func _ready():
 	attack_button.offset_top = -220
 	attack_button.offset_bottom = -170
 	attack_button.pressed.connect(func(): world.attack())
-	if OS.has_feature("mobile"):
-		var run_button := Button.new()
-		run_button.text = "Correr"
-		run_button.focus_mode = Control.FOCUS_NONE
-		run_button.toggle_mode = true
-		root.add_child(run_button)
-		run_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-		run_button.offset_left = -300
-		run_button.offset_right = -200
-		run_button.offset_top = -285
-		run_button.offset_bottom = -235
-		run_button.toggled.connect(func(enabled: bool):
-			world.touch_run = enabled
-			run_button.text = "Caminhar" if enabled else "Correr")
+	if OS.has_feature("mobile"): attack_button.hide()
 
 	var map := panel_at(Vector2.ZERO,Vector2(170,100))
 	map.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -159,6 +146,10 @@ func _ready():
 		world.touch_sensitivity = value
 		settings.set_value("controls","sensitivity",value)
 		settings.save("user://settings.cfg"))
+	if OS.has_feature("mobile"):
+		button(menu,"Personalizar HUD",func():
+			windows["Opções"].hide()
+			get_tree().call_group("mobile_hud","edit_layout"))
 	button(menu,"Ajuda / controles",func(): toggle("Ajuda"))
 	button(menu,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(menu,"Teleportador",func(): toggle("Teleportador"))
