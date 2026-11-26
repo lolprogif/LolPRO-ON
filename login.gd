@@ -6,6 +6,9 @@ var password: LineEdit
 var character: LineEdit
 var status: Label
 var req := HTTPRequest.new()
+var update_req := HTTPRequest.new()
+var latest_version := ""
+var update_manifest: Dictionary = {}
 var action := ""
 var token := ""
 var settings := ConfigFile.new()
@@ -17,6 +20,9 @@ func _ready():
 	add_child(req)
 	req.timeout = 12
 	req.request_completed.connect(done)
+	add_child(update_req)
+	update_req.timeout = 15
+	update_req.request_completed.connect(_on_update_manifest)
 	var bg := ColorRect.new()
 	bg.color = Color("17252e")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -68,7 +74,10 @@ func _ready():
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Teste local • use uma senha exclusiva de teste."
 	v.add_child(status)
-	button(v,"Verificar atualizações",func(): OS.shell_open("https://github.com/lolprogif/LolPRO-ON/releases"))
+	button(v,"Verificar atualizações",check_for_updates)
+	button(v,"Baixar atualização / Instalar APK",download_update)
+	button(v,"Abrir Google Play",func(): OS.shell_open("https://play.google.com/store/apps/details?id=com.rpg.mundointernacional"))
+	check_for_updates()
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().change_scene_to_file("res://World.tscn"))
@@ -138,3 +147,38 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().change_scene_to_file("res://World.tscn")
+
+const MANIFEST_URL := "https://raw.githubusercontent.com/lolprogif/LolPRO-ON/main/latest.json"
+const CURRENT_VERSION := "0.9"
+
+func check_for_updates():
+	status.text = "Verificando atualizações..."
+	var error := update_req.request(MANIFEST_URL)
+	if error != OK:
+		status.text = "Não foi possível consultar atualizações. Confira a conexão."
+
+func _on_update_manifest(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		status.text = "Não foi possível verificar atualizações. Tente novamente mais tarde."
+		return
+	var parsed = JSON.parse_string(body.get_string_from_utf8())
+	if not parsed is Dictionary or not parsed.has("version"):
+		status.text = "Arquivo de versões inválido."
+		return
+	update_manifest = parsed
+	latest_version = str(parsed.get("version",""))
+	if latest_version == CURRENT_VERSION or latest_version.is_empty():
+		status.text = "Você já está na versão " + CURRENT_VERSION + "."
+	else:
+		status.text = "Nova versão disponível: " + latest_version + ". Toque em Baixar atualização."
+
+func download_update():
+	if update_manifest.is_empty():
+		status.text = "Primeiro toque em Verificar atualizações."
+		return
+	var url := str(update_manifest.get("android_url","")) if OS.has_feature("mobile") else str(update_manifest.get("windows_url",""))
+	if url.is_empty():
+		status.text = "Download ainda não publicado para esta plataforma."
+		return
+	OS.shell_open(url)
+	status.text = "Download aberto. Siga a confirmação do sistema para instalar."
