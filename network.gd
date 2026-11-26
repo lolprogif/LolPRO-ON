@@ -41,6 +41,9 @@ func _ready():
 	b.position = Vector2(12,125)
 	layer.add_child(b)
 	b.pressed.connect(func(): hud.toggle("Rede"))
+	var voice = preload("res://voice.gd").new()
+	voice.net = self
+	add_child(voice)
 	if OS.has_feature("mobile"):
 		var controls = preload("res://touch.gd").new()
 		controls.world = world
