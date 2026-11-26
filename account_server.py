@@ -58,6 +58,8 @@ with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, permissions TEXT)')
  db.execute('CREATE TABLE IF NOT EXISTS admin_audit (username TEXT, command TEXT, created INTEGER)')
  db.execute('CREATE TABLE IF NOT EXISTS bans (username TEXT PRIMARY KEY)')
+with connect_db() as db:
+ db.execute('CREATE TABLE IF NOT EXISTS pets (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, mission INTEGER DEFAULT 0, summoned INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
 def admin_permissions(db,u):
  owner=os.environ.get('LOLPRO_OWNER','').strip().lower()
  if owner and u==owner: return ['owner','curar','nivel','dinheiro','adm','removeradm','ban','desban']
@@ -178,6 +180,8 @@ class Handler(BaseHTTPRequestHandler):
       kinds=('helmet','boots','gloves','necklace','ring','bracelet','shield')
       gear={k:0 for k in kinds}
       gear.update(dict(db.execute('SELECT kind,equipped FROM gear WHERE username=? AND slot=?',(row[0],slot))))
+      db.execute('INSERT OR IGNORE INTO pets(username,slot) VALUES(?,?)',(row[0],slot))
+      pet=list(db.execute('SELECT level,xp,mission,summoned FROM pets WHERE username=? AND slot=?',(row[0],slot)).fetchone())
       me['gear']=gear
       profile=db.execute('SELECT class,gender FROM class_profiles WHERE username=? AND slot=?',(row[0],slot)).fetchone() or ('Guerreiro','Masculino')
       me['class'],me['gender']=profile
@@ -189,6 +193,7 @@ class Handler(BaseHTTPRequestHandler):
        cmd=d.get('item_action')
        if cmd=='buy_potion' and me['coins']>=10: me['coins']-=10; me['potions']+=1
        elif cmd=='sell_potion' and me['potions']>0: me['coins']+=5; me['potions']-=1
+       elif cmd=='pet_toggle': pet[3]=1-pet[3]
        elif cmd=='weapon': me['weapon']=1-me['weapon']
        elif cmd=='armor': me['armor']=1-me['armor']
        elif isinstance(cmd,str) and cmd.startswith('upgrade:'):
@@ -205,6 +210,17 @@ class Handler(BaseHTTPRequestHandler):
       if me['hp']==0 and now>=me['respawn_at']:
        me['hp']=100; me['generation']+=1
       if d.get('generation',0)!=me['generation']: pos=[0,0.1,0]
+      if pet[3] and pet[0]<99 and me['hp']>0:
+       goal=([20,0,20],[-20,0,20],[-20,0,-20],[20,0,-20])[pet[2]%4]
+       if math.hypot(pos[0]-goal[0],pos[2]-goal[2])<3:
+        pet[2]+=1
+        pet[1]+=100
+        while pet[0]<99 and pet[1]>=100+(pet[0]-1)*50:
+         pet[1]-=100+(pet[0]-1)*50
+         pet[0]+=1
+        if pet[0]==99: pet[1]=0
+      db.execute('UPDATE pets SET level=?,xp=?,mission=?,summoned=? WHERE username=? AND slot=?',(*pet,row[0],slot))
+      me['pet']={'level':pet[0],'xp':pet[1],'mission':pet[2],'summoned':bool(pet[3]),'goal':([20,20],[-20,20],[-20,-20],[20,-20])[pet[2]%4]}
       me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now)
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
@@ -251,12 +267,14 @@ class Handler(BaseHTTPRequestHandler):
       others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0]]
       for item in others:
        source=players[item['id']]
+       item['pet']=source.get('pet',{})
        item.update(class_name=source.get('class','Guerreiro'),skill_event=source.get('skill_event',''),skill_index=source.get('skill_index',-1))
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
       own['class'],own['gender']=profile
       own.update(mana=int(me['mana']),skill_ack=me.get('skill_ack',''),skill_event=me.get('skill_event',''),skill_index=me.get('skill_index',-1),cooldowns=[max(0,cooldowns.get(i,0)-now) for i in range(6)])
+      own['pet']=me['pet']
       own['gear']=gear
       own['ranks']=ranks
       own['item_seq']=me.get('item_seq','')
