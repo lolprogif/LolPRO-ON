@@ -1,4 +1,5 @@
 name: Deploy LolPRO-ON download page
+# Trigger deployment after Pages was enabled in repository settings.
 
 on:
   push:
