@@ -60,9 +60,9 @@ func _ready():
 	coords = label(mv,"0, 0")
 	button(mv,"Mapa grande",func(): toggle("Mapa"))
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
-	cp.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	cp.offset_left = 12
-	cp.offset_right = 352
+	cp.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	cp.offset_left = -170
+	cp.offset_right = 170
 	cp.offset_top = -180
 	cp.offset_bottom = -66
 	var cv := VBoxContainer.new()
@@ -77,7 +77,12 @@ func _ready():
 	entry.text_submitted.connect(func(msg):
 		chat.add_text("\nVocê: " + msg)
 		entry.clear()
-		entry.release_focus())
+		entry.release_focus()
+		cp.hide())
+	cp.hide()
+	button(h,"Chat",func():
+		cp.visible = not cp.visible
+		if cp.visible: entry.grab_focus())
 	var inv := window("Inventário",Vector2(300,440),true)
 	label(inv,"Equipamentos • espaços reservados")
 	grid_slots(inv,4,12)
@@ -116,6 +121,19 @@ func _ready():
 			refresh())
 	label(shop,"Loja premium e NPC físico: pendentes")
 	var menu := window("Opções",Vector2(300,360))
+	label(menu,"Sensibilidade da câmera (Android)")
+	var sensitivity := HSlider.new()
+	sensitivity.min_value = 1
+	sensitivity.max_value = 100
+	var settings := ConfigFile.new()
+	settings.load("user://settings.cfg")
+	sensitivity.value = settings.get_value("controls","sensitivity",50.0)
+	world.touch_sensitivity = sensitivity.value
+	menu.add_child(sensitivity)
+	sensitivity.value_changed.connect(func(value: float):
+		world.touch_sensitivity = value
+		settings.set_value("controls","sensitivity",value)
+		settings.save("user://settings.cfg"))
 	button(menu,"Ajuda / controles",func(): toggle("Ajuda"))
 	button(menu,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(menu,"Teleportador",func(): toggle("Teleportador"))
