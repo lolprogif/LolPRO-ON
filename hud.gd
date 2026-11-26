@@ -49,7 +49,7 @@ func _ready():
 		var n: String = name
 		button(h,n,func(): use_potion() if n == "Poção" else toggle(n))
 	var attack_button := Button.new()
-	attack_button.text = "Atacar" if OS.has_feature("mobile") else "Atacar (Ctrl)"
+	attack_button.text = "Atacar" if OS.has_feature("mobile") else "Atacar (Mouse esq.)"
 	attack_button.focus_mode = Control.FOCUS_NONE
 	root.add_child(attack_button)
 	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
