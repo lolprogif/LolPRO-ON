@@ -131,7 +131,9 @@ class Handler(BaseHTTPRequestHandler):
           if target['hp']==0:
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
-           if me['xp']>=100: me['xp']-=100; me['level']+=1
+           while me['level']<99 and me['xp']>=100+(me['level']-1)*50:
+            me['xp']-=100+(me['level']-1)*50; me['level']+=1
+           if me['level']>=99: me['xp']=0
       me.setdefault('mana',100.0)
       me['mana']=min(100.0,me['mana']+max(0,now-me.get('mana_time',now))*4)
       me['mana_time']=now
