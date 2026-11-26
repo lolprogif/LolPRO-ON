@@ -58,6 +58,17 @@ func _ready():
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
+	# Arte oficial de fantasia como fundo integral da tela de login.
+	var wallpaper := TextureRect.new()
+	wallpaper.name = "LoginWallpaper"
+	wallpaper.texture = load("res://assets/login_background.jpg")
+	wallpaper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	wallpaper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	wallpaper.stretch_mode = TextureRect.STRETCH_SCALE
+	wallpaper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(wallpaper)
+	move_child(wallpaper, 1)
+
 	var layout := HBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layout.add_theme_constant_override("separation", 0)
@@ -110,7 +121,7 @@ func _ready():
 	features.add_theme_font_size_override("font_size", 13)
 	features.add_theme_color_override("font_color", Color("d6b36d"))
 	hero_box.add_child(features)
-
+	# O logotipo e o texto já fazem parte da arte de fundo.\n\thero_box.visible = false\n
 	login_center = CenterContainer.new()
 	login_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	login_center.size_flags_stretch_ratio = 0.85
@@ -119,7 +130,7 @@ func _ready():
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(380, 0)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("263039")
+	style.bg_color = Color("101b25")
 	style.border_color = Color("b69a60")
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(12)
