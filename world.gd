@@ -275,16 +275,51 @@ func show_gear(actor: Node3D, data: Dictionary):
 	for key in parts:
 		if not int(flags.get(key,0)): continue
 		var mesh := MeshInstance3D.new()
-		var shape := BoxMesh.new()
-		shape.size = parts[key][1]
-		mesh.mesh = shape
+		mesh.mesh = equipment_mesh(key,parts[key][1])
 		var mat := StandardMaterial3D.new()
 		mat.albedo_color = Color("c9a45a") if key in ["ring","necklace","bracelet"] else Color("8b9ba9")
 		mat.metallic = 0.65
 		mesh.material_override = mat
 		holder.add_child(mesh)
 		mesh.position = parts[key][0]
+		if key == "weapon":
+			add_gear_detail(mesh,Vector3(0,-0.39,0),Vector3(0.25,0.045,0.09),Color("c5a052"))
+			add_gear_detail(mesh,Vector3(0,-0.49,0),Vector3(0.055,0.18,0.06),Color("493323"))
+		if key == "shield":
+			add_gear_detail(mesh,Vector3(0,0,0.065),Vector3(0.09,0.09,0.06),Color("c5a052"))
 		if key in ["boots","gloves"]:
 			var other := mesh.duplicate() as MeshInstance3D
 			holder.add_child(other)
 			other.position.x *= -1
+
+func equipment_mesh(kind: String, dimensions: Vector3) -> Mesh:
+	if kind in ["ring","bracelet","necklace"]:
+		var torus := TorusMesh.new()
+		torus.inner_radius = dimensions.x*0.30
+		torus.outer_radius = dimensions.x*0.50
+		return torus
+	if kind in ["helmet","armor","gloves","boots","shield"]:
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.5
+		sphere.height = 1.0
+		var arrays := sphere.get_mesh_arrays()
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in range(vertices.size()): vertices[i] *= dimensions
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		var result := ArrayMesh.new()
+		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+		return result
+	var blade := PrismMesh.new()
+	blade.size = dimensions
+	return blade
+func add_gear_detail(parent: Node3D, offset: Vector3, dimensions: Vector3, color: Color):
+	var detail := MeshInstance3D.new()
+	var shape := BoxMesh.new()
+	shape.size = dimensions
+	detail.mesh = shape
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.5
+	detail.material_override = mat
+	parent.add_child(detail)
+	detail.position = offset
