@@ -43,63 +43,168 @@ func _ready():
 	add_child(update_req)
 	update_req.timeout = 20
 	update_req.request_completed.connect(update_manifest_done)
+
 	var bg := ColorRect.new()
-	bg.color = Color("17252e")
+	bg.color = Color("101b25")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	var center := CenterContainer.new()
-	login_center = center
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+
+	var layout := HBoxContainer.new()
+	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.add_theme_constant_override("separation", 0)
+	add_child(layout)
+
+	var hero := PanelContainer.new()
+	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero.size_flags_stretch_ratio = 1.15
+	var hero_style := StyleBoxFlat.new()
+	hero_style.bg_color = Color("172a35")
+	hero_style.content_margin_left = 48
+	hero_style.content_margin_right = 48
+	hero_style.content_margin_top = 40
+	hero_style.content_margin_bottom = 40
+	hero.add_theme_stylebox_override("panel", hero_style)
+	layout.add_child(hero)
+
+	var hero_box := VBoxContainer.new()
+	hero_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	hero_box.add_theme_constant_override("separation", 18)
+	hero.add_child(hero_box)
+
+	var eyebrow := Label.new()
+	eyebrow.text = "AVENTURA MULTIJOGADOR"
+	eyebrow.add_theme_font_size_override("font_size", 14)
+	eyebrow.add_theme_color_override("font_color", Color("d6b36d"))
+	hero_box.add_child(eyebrow)
+
+	var brand := Label.new()
+	brand.text = "LolPRO-ON"
+	brand.add_theme_font_size_override("font_size", 48)
+	brand.add_theme_color_override("font_color", Color("f4ead7"))
+	hero_box.add_child(brand)
+
+	var tagline := Label.new()
+	tagline.text = "Seu mundo. Sua aventura."
+	tagline.add_theme_font_size_override("font_size", 25)
+	tagline.add_theme_color_override("font_color", Color("d5e0e5"))
+	hero_box.add_child(tagline)
+
+	var description := Label.new()
+	description.text = "Crie seu personagem, explore novos lugares e evolua ao lado de seus amigos."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.add_theme_font_size_override("font_size", 17)
+	description.add_theme_color_override("font_color", Color("b4c3ca"))
+	hero_box.add_child(description)
+
+	var features := Label.new()
+	features.text = "MUNDO ONLINE  •  PERSONAGENS  •  AVENTURA"
+	features.add_theme_font_size_override("font_size", 13)
+	features.add_theme_color_override("font_color", Color("d6b36d"))
+	hero_box.add_child(features)
+
+	login_center = CenterContainer.new()
+	login_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	login_center.size_flags_stretch_ratio = 0.85
+	layout.add_child(login_center)
+
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(440,0)
+	panel.custom_minimum_size = Vector2(380, 0)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("30271f")
+	style.bg_color = Color("263039")
 	style.border_color = Color("b69a60")
-	style.set_border_width_all(2)
-	style.content_margin_left = 24
-	style.content_margin_right = 24
-	style.content_margin_top = 18
-	style.content_margin_bottom = 18
-	panel.add_theme_stylebox_override("panel",style)
-	center.add_child(panel)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 28
+	style.content_margin_right = 28
+	style.content_margin_top = 28
+	style.content_margin_bottom = 28
+	panel.add_theme_stylebox_override("panel", style)
+	login_center.add_child(panel)
+
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation",8)
+	v.add_theme_constant_override("separation", 10)
 	panel.add_child(v)
+
 	title_label = Label.new()
-	title_label.text = "LolPRO-ON • V0.9"
-	title_label.add_theme_font_size_override("font_size",26)
+	title_label.text = "Bem-vindo de volta"
+	title_label.add_theme_font_size_override("font_size", 27)
+	title_label.add_theme_color_override("font_color", Color("f4ead7"))
 	v.add_child(title_label)
+
+	var subtitle := Label.new()
+	subtitle.text = "Entre para continuar sua aventura."
+	subtitle.add_theme_color_override("font_color", Color("bdc8ce"))
+	v.add_child(subtitle)
+
 	language = OptionButton.new()
-	for s in ["Brasil • Português", "International • English", "España • Español"]: language.add_item(s)
+	for item in ["Brasil • Português", "International • English", "España • Español"]:
+		language.add_item(item)
 	v.add_child(language)
+
 	endpoint = LineEdit.new()
-	endpoint.text = "https://lolpro-on.onrender.com"
 	settings.load("user://login.cfg")
 	endpoint.text = "https://lolpro-on.onrender.com"
-	user = field(v,"Usuário")
-	user.text = str(settings.get_value("login","username",""))
-	password = field(v,"Senha")
+	user = field(v, "Usuário")
+	user.text = str(settings.get_value("login", "username", ""))
+	password = field(v, "Senha")
 	password.secret = true
+
 	remember_user = CheckBox.new()
 	remember_user.text = "Lembrar meu usuário neste dispositivo"
-	remember_user.button_pressed = bool(settings.get_value("login","remember_user",true))
+	remember_user.button_pressed = bool(settings.get_value("login", "remember_user", true))
 	v.add_child(remember_user)
-	button(v,"Entrar",func(): send("login",{"username":user.text,"password":password.text}))
-	button(v,"Criar conta",open_register_window)
+
+	var enter_button := Button.new()
+	enter_button.text = "ENTRAR"
+	enter_button.custom_minimum_size.y = 44
+	v.add_child(enter_button)
+	enter_button.pressed.connect(func(): send("login", {"username": user.text, "password": password.text}))
+
+	var create_button := Button.new()
+	create_button.text = "Criar conta"
+	create_button.custom_minimum_size.y = 40
+	v.add_child(create_button)
+	create_button.pressed.connect(open_register_window)
+
 	status = Label.new()
 	status.name = "LoginStatus"
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Entre com sua conta ou crie uma nova."
+	status.add_theme_color_override("font_color", Color("d5c08e"))
 	v.add_child(status)
-	button(v,"Atualizar jogo",check_for_updates)
-	button(v,"Baixar jogo / Download",func(): OS.shell_open("https://lolprogif.github.io/LolPRO-ON/"))
-	button(v,"Modo offline / Offline",func():
+
+	v.add_child(HSeparator.new())
+	var update_button := Button.new()
+	update_button.text = "Atualizar jogo"
+	update_button.custom_minimum_size.y = 40
+	v.add_child(update_button)
+	update_button.pressed.connect(check_for_updates)
+
+	var download_button := Button.new()
+	download_button.text = "Baixar jogo / Download"
+	v.add_child(download_button)
+	download_button.pressed.connect(func(): OS.shell_open("https://lolprogif.github.io/LolPRO-ON/"))
+
+	var offline_button := Button.new()
+	offline_button.text = "Modo offline / Offline"
+	v.add_child(offline_button)
+	offline_button.pressed.connect(func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().remove_meta("online_token")
 		get_tree().remove_meta("hud_profile")
 		get_tree().change_scene_to_file("res://World.tscn"))
-	
+
+	get_viewport().size_changed.connect(_adapt_login_layout)
+	_adapt_login_layout()
+
+func _adapt_login_layout():
+	if not is_instance_valid(login_center):
+		return
+	var width := get_viewport_rect().size.x
+	for child in get_children():
+		if child is HBoxContainer and child.get_child_count() > 1:
+			child.get_child(0).visible = width >= 620
+
 func open_register_window():
 	if is_instance_valid(create_window):
 		create_window.popup_centered()
