@@ -253,7 +253,7 @@ func toggle(n: String):
 func apply_progress(data: Dictionary):
 	var ranks: Dictionary = data.get("ranks",{})
 	for key in upgrade_buttons:
-		var rank := int(ranks.get(key,0))
+		var rank := maxi(1,int(ranks.get(key,1)))
 		var rarity := "Comum" if rank<3 else ("Raro" if rank<6 else ("Épico" if rank<9 else "Lendário"))
 		upgrade_buttons[key].text = "%s +%d • %s" % [inventory_items[key],rank,rarity]
 		upgrade_buttons[key].tooltip_text = "Melhorar: %d moedas" % (25*(rank+1))
