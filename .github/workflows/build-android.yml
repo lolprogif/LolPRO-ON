@@ -38,19 +38,38 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates
           mv templates ~/.local/share/godot/export_templates/$V.stable
 
-      - name: Configurar Android
+      - name: Configurar assinatura Android persistente
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::GitHub Actions Secret $name ausente. Configure os quatro secrets indicados no guia privado de assinatura."
+              exit 1
+            fi
+          done
           mkdir -p ~/.android ~/.config/godot
-          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > ~/.android/lolpro-release.keystore
+          keytool -list -keystore ~/.android/lolpro-release.keystore -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           printf '[gd_resource type="EditorSettings" format=3]\\n\\n[resource]\\nexport/android/android_sdk_path = "%s"\\nexport/android/java_sdk_path = "%s"\\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
           python3 - <<'PY'
           import os
           p = "export_presets.cfg"
-          s = open(p, encoding="utf-8").read()
+          content = open(p, encoding="utf-8").read()
           marker = "[preset.0.options]\\n"
-          values = 'keystore/release="{}"\\nkeystore/release_user="{}"\\nkeystore/release_password="{}"\\n'.format(os.path.expanduser("~/.android/lolpro-release.keystore"), os.environ["ANDROID_KEY_ALIAS"], os.environ["ANDROID_KEYSTORE_PASSWORD"])
-          s = s.replace(marker, marker + values, 1)
-          open(p, "w", encoding="utf-8").write(s)
+          if marker not in content:
+              raise SystemExit("Preset Android não encontrado em export_presets.cfg")
+          lines = (
+              'keystore/release="/home/runner/.android/lolpro-release.keystore"\\n'
+              'keystore/release_user="' + os.environ["ANDROID_KEY_ALIAS"] + '"\\n'
+              'keystore/release_password="' + os.environ["ANDROID_KEY_PASSWORD"] + '"\\n'
+          )
+          content = content.replace(marker, marker + lines, 1)
+          open(p, "w", encoding="utf-8").write(content)
           PY
 
       - name: Importar jogo

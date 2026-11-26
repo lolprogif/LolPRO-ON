@@ -40,6 +40,7 @@ jobs:
           Copy-Item account_server.py build/account_server.py
           Copy-Item INICIAR_CONTAS.bat build/INICIAR_CONTAS.bat
           Copy-Item REDEFINIR_SENHA.py build/REDEFINIR_SENHA.py
+          Copy-Item updater.ps1 build/updater.ps1
           @'
           @echo off
           setlocal
@@ -81,9 +82,13 @@ jobs:
           - Cadastro/personagem nao sincroniza inventario, progresso ou mundo.
           '@ | Set-Content -Encoding UTF8 build/LEIA-ME-WINDOWS.txt
 
+      - name: Compactar pacote Windows completo
+        shell: pwsh
+        run: Compress-Archive -Path build/* -DestinationPath LolPRO-ON-Windows.zip -CompressionLevel Optimal
+
       - name: Disponibilizar pacote Windows completo
         uses: actions/upload-artifact@v4
         with:
           name: LolPRO-ON-Windows
-          path: build/
+          path: LolPRO-ON-Windows.zip
           if-no-files-found: error

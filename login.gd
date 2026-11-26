@@ -6,6 +6,8 @@ var password: LineEdit
 var character: LineEdit
 var status: Label
 var req := HTTPRequest.new()
+var update_req := HTTPRequest.new()
+var update_manifest: Dictionary = {}
 var action := ""
 var token := ""
 var settings := ConfigFile.new()
@@ -17,6 +19,9 @@ func _ready():
 	add_child(req)
 	req.timeout = 12
 	req.request_completed.connect(done)
+	add_child(update_req)
+	update_req.timeout = 20
+	update_req.request_completed.connect(_on_update_manifest)
 	var bg := ColorRect.new()
 	bg.color = Color("17252e")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -68,7 +73,9 @@ func _ready():
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Teste local • use uma senha exclusiva de teste."
 	v.add_child(status)
-	button(v,"Verificar atualizações",func(): OS.shell_open("https://github.com/lolprogif/LolPRO-ON/releases"))
+	button(v,"Verificar atualizações",check_for_updates)
+	button(v,"Baixar e instalar atualização",install_update)
+	check_for_updates()
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().change_scene_to_file("res://World.tscn"))
@@ -138,3 +145,54 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().change_scene_to_file("res://World.tscn")
+
+
+const UPDATE_MANIFEST_URL := "https://raw.githubusercontent.com/lolprogif/LolPRO-ON/main/latest.json"
+const CURRENT_GAME_VERSION := "0.9"
+
+func check_for_updates():
+	status.text = "Verificando atualizações..."
+	var err := update_req.request(UPDATE_MANIFEST_URL)
+	if err != OK:
+		status.text = "Não foi possível consultar as atualizações. Verifique a internet."
+
+func _on_update_manifest(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray):
+	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		status.text = "Servidor de atualizações indisponível. Tente novamente."
+		return
+	var parsed = JSON.parse_string(body.get_string_from_utf8())
+	if not parsed is Dictionary or not parsed.has("version"):
+		status.text = "Manifesto de atualização inválido."
+		return
+	update_manifest = parsed
+	var latest := str(parsed.get("version", ""))
+	if latest == CURRENT_GAME_VERSION:
+		status.text = "LolPRO-ON já está atualizado (v" + CURRENT_GAME_VERSION + ")."
+	else:
+		status.text = "Nova versão disponível: v" + latest + ". Toque em Baixar e instalar."
+
+func install_update():
+	if update_manifest.is_empty():
+		check_for_updates()
+		status.text = "Verificando versão. Tente novamente em alguns segundos."
+		return
+	if OS.get_name() == "Windows":
+		var url := str(update_manifest.get("windows_url", ""))
+		var updater := OS.get_executable_path().get_base_dir().path_join("updater.ps1")
+		if url.is_empty() or not FileAccess.file_exists(updater):
+			status.text = "Atualizador do Windows ou pacote ainda não publicado."
+			return
+		var pid := OS.create_process("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", updater, "-ManifestUrl", UPDATE_MANIFEST_URL])
+		if pid <= 0:
+			status.text = "Não foi possível iniciar o atualizador do Windows."
+			return
+		get_tree().quit()
+	elif OS.has_feature("mobile"):
+		var apk_url := str(update_manifest.get("android_url", ""))
+		if apk_url.is_empty():
+			status.text = "APK ainda não publicado."
+			return
+		OS.shell_open(apk_url)
+		status.text = "Download do APK aberto. Após baixar, confirme a instalação no Android."
+	else:
+		status.text = "Esta plataforma ainda não possui instalador automático."
