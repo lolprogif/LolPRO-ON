@@ -9,7 +9,7 @@ with sqlite3.connect(DB) as db:
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
-  self.reply({'ok':True,'service':'LolPRO-ON','world_protocol':1})
+  self.reply({'ok':True,'service':'LolPRO-ON','world_protocol':2})
  def do_POST(self):
   import time
   try:
@@ -36,9 +36,31 @@ class Handler(BaseHTTPRequestHandler):
      with world_lock:
       for key in list(players):
        if now-players[key]['seen']>15: del players[key]
-      players[row[0]]={'id':row[0],'name':row[1],'pos':pos,'angle':angle,'state':state,'seen':now}
-      others=[{k:v for k,v in item.items() if k!='seen'} for key,item in players.items() if key!=row[0]]
-     return self.reply({'ok':True,'players':others})
+      me=players.setdefault(row[0],{'id':row[0],'hp':100,'last_attack':-100,'attack_seq':'','respawn_at':0,'generation':0,'potions':5,'potion_seq':''})
+      if me['hp']==0 and now>=me['respawn_at']:
+       me['hp']=100; me['generation']+=1
+      if d.get('generation',0)!=me['generation']: pos=[0,0.1,0]
+      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now)
+      seq=str(d.get('attack',''))[:80]
+      if seq and seq!=me['attack_seq']:
+       me['attack_seq']=seq
+       if me['hp']>0 and now-me['last_attack']>=0.6:
+        me['last_attack']=now
+        for key,target in players.items():
+         if key==row[0] or target['hp']<=0: continue
+         dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
+         dist=math.sqrt(dx*dx+dy*dy+dz*dz)
+         if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
+          target['hp']=max(0,target['hp']-10)
+          if target['hp']==0: target['respawn_at']=now+3
+      potion=str(d.get('potion',''))[:80]
+      if potion and potion!=me['potion_seq']:
+       me['potion_seq']=potion
+       if 0<me['hp']<100 and me['potions']>0:
+        me['potions']-=1; me['hp']=min(100,me['hp']+20)
+      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq')} for key,item in players.items() if key!=row[0]]
+      own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq')}
+     return self.reply({'ok':True,'players':others,'self':own})
     elif self.path=='/character':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      name=str(d.get('character','')).strip()
