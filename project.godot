@@ -13,3 +13,6 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=0
+
+[audio]
+driver/enable_input=true
