@@ -8,6 +8,9 @@ DB=os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, email TEXT UNIQUE, salt TEXT, password TEXT, character TEXT DEFAULT "")')
  db.execute('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, expires INTEGER)')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS characters (username TEXT, slot INTEGER, name TEXT, PRIMARY KEY(username,slot))')
+ db.execute('INSERT OR IGNORE INTO characters SELECT username,0,character FROM accounts WHERE character != ""')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -26,7 +29,7 @@ class Handler(BaseHTTPRequestHandler):
     elif self.path=='/login':
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
-     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2]})
+     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name} for i,name in db.execute('SELECT slot,name FROM characters WHERE username=? ORDER BY slot',(u,))]})
     elif self.path=='/voice':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row: raise ValueError('Invalid session')
@@ -93,6 +96,11 @@ class Handler(BaseHTTPRequestHandler):
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      name=str(d.get('character','')).strip()
      if not row or not 3<=len(name)<=24 or not all(c.isalnum() or c in '_ ' for c in name): raise ValueError('Invalid session or character name')
+     slot=d.get('slot',0)
+     if type(slot) is not int or not 0<=slot<4: raise ValueError('Invalid slot')
+     existing=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(row[0],slot)).fetchone()
+     if existing and existing[0]!=name: raise ValueError('Slot already occupied')
+     db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
     else: raise ValueError('Unknown endpoint')
    self.reply({'ok':True})
