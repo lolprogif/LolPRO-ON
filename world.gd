@@ -39,12 +39,13 @@ func _ready():
 	add_child(sun)
 	var ground := StaticBody3D.new()
 	add_child(ground)
+	create_valoria()
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(200,200)
 	mesh.mesh = plane
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.37,0.56,0.23)
+	mat.albedo_color = Color(0.16,0.19,0.20)
 	var noise := NoiseTexture2D.new()
 	noise.width = 512
 	noise.height = 512
@@ -393,3 +394,137 @@ func refinement_glow(mesh: MeshInstance3D, mat: StandardMaterial3D, rank: int):
 	sparks.draw_pass_1 = dot
 	mesh.add_child(sparks)
 	sparks.emitting = true
+
+
+# Valoria: procedural oriental-fantasy starter town.
+func create_valoria():
+	var stone := Color("343b43")
+	var dark_stone := Color("202832")
+	var roof := Color("171f2b")
+	var gold := Color("a77b3e")
+	var wood := Color("493329")
+	var red := Color("6e2028")
+	# Main raised courtyard and the road leading to the temple.
+	map_box("Courtyard", Vector3(0,0.02,0), Vector3(34,0.45,34), stone)
+	map_box("TempleRoad", Vector3(0,0.06,-18), Vector3(12,0.3,24), dark_stone)
+	for i in range(6):
+		map_box("RoadTile", Vector3(0,0.24,-8.0-float(i)*3.0), Vector3(11,0.12,2.7), stone)
+	# Entrance stairs.
+	for i in range(5):
+		map_box("TempleStep", Vector3(0,0.22+float(i)*0.24,-26.0-float(i)*0.72), Vector3(13.0-float(i)*0.8,0.42,2.0), dark_stone)
+	# Main temple platform, columns and walls.
+	map_box("TempleFoundation", Vector3(0,1.45,-34), Vector3(22,1.1,15), dark_stone)
+	map_box("TempleBackWall", Vector3(0,5.1,-40.5), Vector3(19,7.0,1.0), wood)
+	map_box("TempleLeftWall", Vector3(-9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
+	map_box("TempleRightWall", Vector3(9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
+	for x in [-8.0,-4.0,4.0,8.0]:
+		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
+		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
+	# Red glowing portal at the back of the temple.
+	var portal := MeshInstance3D.new()
+	var portal_mesh := CylinderMesh.new()
+	portal_mesh.top_radius = 3.0
+	portal_mesh.bottom_radius = 3.0
+	portal_mesh.height = 0.22
+	portal.mesh = portal_mesh
+	var portal_mat := StandardMaterial3D.new()
+	portal_mat.albedo_color = Color("d52b35")
+	portal_mat.emission_enabled = true
+	portal_mat.emission = Color("ff1728")
+	portal_mat.emission_energy_multiplier = 2.4
+	portal.material_override = portal_mat
+	portal.position = Vector3(0,4.2,-39.65)
+	portal.rotation_degrees.x = 90
+	add_child(portal)
+	var portal_light := OmniLight3D.new()
+	portal_light.position = Vector3(0,4.2,-36.8)
+	portal_light.light_color = Color("ff2937")
+	portal_light.light_energy = 3.0
+	portal_light.omni_range = 13.0
+	add_child(portal_light)
+	# Three-tier oriental roof with raised eaves and gold ridge.
+	for tier in range(3):
+		var y := 8.0+float(tier)*2.0
+		var width := 23.0-float(tier)*3.3
+		var depth := 16.0-float(tier)*2.4
+		map_box("PagodaRoof", Vector3(0,y,-34), Vector3(width,0.55,depth), roof, false)
+		map_box("RoofGoldRidge", Vector3(0,y+0.35,-34), Vector3(width*0.52,0.12,0.22), gold, false)
+		for side in [-1.0,1.0]:
+			var eave := map_box("RaisedEave", Vector3(side*(width*0.5-0.4),y+0.45,-34), Vector3(0.65,0.7,depth), roof, false)
+			eave.rotation.z = -side*0.10
+	# Entrance gate in front of the courtyard.
+	for x in [-7.0,7.0]:
+		map_box("GatePost", Vector3(x,3.3,12.0), Vector3(1.25,6.5,1.25), red)
+		map_box("GateFoot", Vector3(x,0.55,12.0), Vector3(2.0,1.0,2.0), gold)
+	map_box("GateBeam", Vector3(0,6.5,12.0), Vector3(17,1.0,1.8), wood)
+	map_box("GateRoof", Vector3(0,7.25,12.0), Vector3(20,0.45,3.2), roof, false)
+	# Side buildings: market stalls and small houses.
+	for side in [-1.0,1.0]:
+		for i in range(3):
+			var z := 5.0-float(i)*10.0
+			var x := side*19.0
+			map_box("TownHouse", Vector3(x,2.0,z), Vector3(7,4,7), wood)
+			map_box("HouseRoof", Vector3(x,4.5,z), Vector3(8.5,0.55,8.5), roof, false)
+			map_box("HouseDoor", Vector3(x,1.1,z+3.56), Vector3(1.6,2.2,0.18), dark_stone, false)
+			map_box("HouseTrim", Vector3(x,3.25,z+3.7), Vector3(2.0,0.18,0.25), gold, false)
+	# Courtyard lanterns and braziers.
+	for x in [-12.0,12.0]:
+		for z in [-12.0,2.0,15.0]:
+			map_box("LanternStand", Vector3(x,1.5,z), Vector3(0.65,3.0,0.65), dark_stone)
+			map_box("LanternCap", Vector3(x,3.15,z), Vector3(1.4,0.35,1.4), gold, false)
+			map_fire(Vector3(x,3.65,z))
+	# Low boundary walls and decorative corner towers.
+	for x in [-17.0,17.0]:
+		map_box("CourtyardWall", Vector3(x,1.0,0), Vector3(0.8,2.0,33), dark_stone)
+	for z in [-16.0,16.0]:
+		map_box("CourtyardWall", Vector3(0,1.0,z), Vector3(34,2.0,0.8), dark_stone)
+	# Distant silhouettes make the playable area feel like a larger region.
+	for i in range(9):
+		var x := -48.0+float(i)*12.0
+		map_box("DistantRock", Vector3(x,3.0,-61.0), Vector3(8,6+float(i%3)*2.0,7), Color("242d37"), false)
+	# Spawn point and a short sign at the town entrance.
+	map_box("WelcomeSign", Vector3(0,1.5,17.0), Vector3(4.5,2.8,0.35), wood, false)
+	map_box("WelcomePlaque", Vector3(0,2.0,16.78), Vector3(3.6,0.8,0.12), gold, false)
+
+func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
+	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
+	body.name = label
+	body.position = pos
+	var mesh := MeshInstance3D.new()
+	var shape := BoxMesh.new()
+	shape.size = size
+	mesh.mesh = shape
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.88
+	mesh.material_override = material
+	body.add_child(mesh)
+	if solid:
+		var collision := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = size
+		collision.shape = box
+		body.add_child(collision)
+	add_child(body)
+	return mesh
+
+func map_fire(pos: Vector3):
+	var flame := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.32
+	sphere.height = 0.75
+	flame.mesh = sphere
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color("ff7a19")
+	material.emission_enabled = true
+	material.emission = Color("ff4a08")
+	material.emission_energy_multiplier = 2.0
+	flame.material_override = material
+	flame.position = pos
+	add_child(flame)
+	var light := OmniLight3D.new()
+	light.position = pos
+	light.light_color = Color("ff762a")
+	light.light_energy = 1.5
+	light.omni_range = 8.0
+	add_child(light)
