@@ -60,6 +60,10 @@ with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS bans (username TEXT PRIMARY KEY)')
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS pets (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, mission INTEGER DEFAULT 0, summoned INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
+def pet_bonuses(pet):
+ if not pet.get('summoned',False): return (0,0,0)
+ lv=max(1,min(99,int(pet.get('level',1))))
+ return (5+(lv-1)//4,3+(lv-1)//5,50+(lv-1)*2)
 def admin_permissions(db,u):
  owner=os.environ.get('LOLPRO_OWNER','').strip().lower()
  if owner and u==owner: return ['owner','curar','nivel','dinheiro','adm','removeradm','ban','desban']
@@ -120,7 +124,7 @@ class Handler(BaseHTTPRequestHandler):
        me=players.get(uid)
        if op=='curar':
         if not me or me['hp']<=0: raise ValueError('Personagem indisponível')
-        me['hp']=100; me['mana']=100
+        me['hp']=me.get('max_hp',100); me['mana']=100
        else:
         if len(parts)!=2: raise ValueError('Informe um valor')
         value=int(parts[1])
@@ -208,7 +212,7 @@ class Handler(BaseHTTPRequestHandler):
         gear[cmd]=1-gear[cmd]
         db.execute('INSERT OR REPLACE INTO gear VALUES(?,?,?,?)',(row[0],slot,cmd,gear[cmd]))
       if me['hp']==0 and now>=me['respawn_at']:
-       me['hp']=100; me['generation']+=1
+       me['hp']=me.get('max_hp',100); me['generation']+=1
       if d.get('generation',0)!=me['generation']: pos=[0,0.1,0]
       if pet[3] and pet[0]<99 and me['hp']>0:
        goal=([20,0,20],[-20,0,20],[-20,0,-20],[20,0,-20])[pet[2]%4]
@@ -221,6 +225,11 @@ class Handler(BaseHTTPRequestHandler):
         if pet[0]==99: pet[1]=0
       db.execute('UPDATE pets SET level=?,xp=?,mission=?,summoned=? WHERE username=? AND slot=?',(*pet,row[0],slot))
       me['pet']={'level':pet[0],'xp':pet[1],'mission':pet[2],'summoned':bool(pet[3]),'goal':([20,20],[-20,20],[-20,-20],[20,-20])[pet[2]%4]}
+      pa,pd,ph=pet_bonuses(me['pet'])
+      old_max=me.get('max_hp',100)
+      me['max_hp']=100+ph
+      if me['hp']>0: me['hp']=max(1,min(me['max_hp'],me['hp']+me['max_hp']-old_max))
+      me['pet'].update(attack=pa,defense=pd,life=ph)
       me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now)
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
@@ -232,7 +241,7 @@ class Handler(BaseHTTPRequestHandler):
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
          if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
-          target['hp']=max(0,target['hp']-max(1,10+(5+max(1,ranks.get('weapon',1))-1)*me['weapon']-(3+max(1,target.get('ranks',{}).get('armor',1))-1)*target.get('armor',0)))
+          target['hp']=max(0,target['hp']-max(1,10+pa-pet_bonuses(target.get('pet',{}))[1]+(5+max(1,ranks.get('weapon',1))-1)*me['weapon']-(3+max(1,target.get('ranks',{}).get('armor',1))-1)*target.get('armor',0)))
           if target['hp']==0:
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
@@ -253,17 +262,17 @@ class Handler(BaseHTTPRequestHandler):
         me['skill_event']=skill
         me['skill_index']=idx
         if profile[0]=='Xamã' and idx==0:
-         me['hp']=min(100,me['hp']+30)
+         me['hp']=min(me.get('max_hp',100),me['hp']+30)
         else:
          for key,target in players.items():
           if key!=row[0] and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
-           target['hp']=max(0,target['hp']-(15+idx*4))
+           target['hp']=max(0,target['hp']-max(1,15+idx*4+pa-pet_bonuses(target.get('pet',{}))[1]))
            if target['hp']==0: target['respawn_at']=now+3
       potion=str(d.get('potion',''))[:80]
       if potion and potion!=me['potion_seq']:
        me['potion_seq']=potion
-       if 0<me['hp']<100 and me['potions']>0:
-        me['potions']-=1; me['hp']=min(100,me['hp']+20)
+       if 0<me['hp']<me.get('max_hp',100) and me['potions']>0:
+        me['potions']-=1; me['hp']=min(me.get('max_hp',100),me['hp']+20)
       others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0]]
       for item in others:
        source=players[item['id']]
@@ -274,6 +283,7 @@ class Handler(BaseHTTPRequestHandler):
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
       own['class'],own['gender']=profile
       own.update(mana=int(me['mana']),skill_ack=me.get('skill_ack',''),skill_event=me.get('skill_event',''),skill_index=me.get('skill_index',-1),cooldowns=[max(0,cooldowns.get(i,0)-now) for i in range(6)])
+      own['max_hp']=me['max_hp']
       own['pet']=me['pet']
       own['gear']=gear
       own['ranks']=ranks
