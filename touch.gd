@@ -9,7 +9,7 @@ func _input(event):
 		var size_v := get_viewport_rect().size
 		if event.pressed and event.position.y > size_v.y * 0.62:
 			if event.position.x < size_v.x * 0.35: fingers[event.index] = ["move",event.position]
-			elif event.position.x > size_v.x * 0.8:
+			elif event.position.distance_to(Vector2(size_v.x*0.922,size_v.y*0.78)) <= 36:
 				fingers[event.index] = ["jump",event.position]
 				world.touch_jump = true
 			else: return
@@ -31,5 +31,5 @@ func _process(_delta):
 func _draw():
 	var v := get_viewport_rect().size
 	draw_circle(Vector2(v.x*0.15,v.y*0.78),45,Color(1,1,1,0.25))
-	draw_circle(Vector2(v.x*0.9,v.y*0.78),36,Color(1,1,1,0.3))
-	draw_string(ThemeDB.fallback_font,Vector2(v.x*0.9-18,v.y*0.78+5),"Pular")
+	draw_circle(Vector2(v.x*0.92,v.y*0.78),36,Color(1,1,1,0.3))
+	draw_string(ThemeDB.fallback_font,Vector2(v.x*0.92-18,v.y*0.78+5),"Pular")
