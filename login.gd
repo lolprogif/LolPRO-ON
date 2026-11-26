@@ -88,42 +88,14 @@ func _ready():
 	hero.add_child(wallpaper)
 	hero.move_child(wallpaper, 0)
 
-	var hero_box := VBoxContainer.new()
-	hero_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	hero_box.add_theme_constant_override("separation", 18)
-	hero.add_child(hero_box)
-
-	var eyebrow := Label.new()
-	eyebrow.text = "AVENTURA MULTIJOGADOR"
-	eyebrow.add_theme_font_size_override("font_size", 14)
-	eyebrow.add_theme_color_override("font_color", Color("d6b36d"))
-	hero_box.add_child(eyebrow)
-
-	var brand := Label.new()
-	brand.text = "LolPRO-ON"
-	brand.add_theme_font_size_override("font_size", 48)
-	brand.add_theme_color_override("font_color", Color("f4ead7"))
-	hero_box.add_child(brand)
-
-	var tagline := Label.new()
-	tagline.text = "Seu mundo. Sua aventura."
-	tagline.add_theme_font_size_override("font_size", 25)
-	tagline.add_theme_color_override("font_color", Color("d5e0e5"))
-	hero_box.add_child(tagline)
-
-	var description := Label.new()
-	description.text = "Crie seu personagem, explore novos lugares e evolua ao lado de seus amigos."
-	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.add_theme_font_size_override("font_size", 17)
-	description.add_theme_color_override("font_color", Color("b4c3ca"))
-	hero_box.add_child(description)
-
-	var features := Label.new()
-	features.text = "MUNDO ONLINE  •  PERSONAGENS  •  AVENTURA"
-	features.add_theme_font_size_override("font_size", 13)
-	features.add_theme_color_override("font_color", Color("d6b36d"))
-	hero_box.add_child(features)
-
+	# A arte já contém o logotipo e a chamada visual. Recorta a faixa direita
+	# que traz um formulário ilustrativo embutido, evitando duplicar a tela real.
+	if wallpaper.texture != null:
+		var source_size := wallpaper.texture.get_size()
+		var artwork := AtlasTexture.new()
+		artwork.atlas = wallpaper.texture
+		artwork.region = Rect2(Vector2.ZERO, Vector2(source_size.x * 0.68, source_size.y))
+		wallpaper.texture = artwork
 	login_center = CenterContainer.new()
 	login_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	login_center.size_flags_stretch_ratio = 0.85
