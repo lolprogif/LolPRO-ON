@@ -38,6 +38,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item account_server.py build/account_server.py
+          Copy-Item update_windows.ps1 build/update_windows.ps1
           Copy-Item INICIAR_CONTAS.bat build/INICIAR_CONTAS.bat
           Copy-Item REDEFINIR_SENHA.py build/REDEFINIR_SENHA.py
           @'
