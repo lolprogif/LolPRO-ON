@@ -21,7 +21,7 @@ var login_center: CenterContainer
 var selected_slot := 0
 var slot_names := {}
 var slot_profiles := {}
-var selection: CenterContainer
+var selection: Control
 var loading := false
 var progress: ProgressBar
 var loading_label: Label
@@ -285,11 +285,10 @@ func show_selection(items: Array, legacy: String):
 		slot_names[int(item.get("slot",0))] = str(item.get("name",""))
 		slot_profiles[int(item.get("slot",0))] = item
 	if slot_names.is_empty() and not legacy.is_empty(): slot_names[0] = legacy
-	selection = CenterContainer.new()
+	selection = MarginContainer.new()
 	add_child(selection)
 	selection.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(480,0)
 	selection.add_child(panel)
 	var v := VBoxContainer.new()
 	panel.add_child(v)
@@ -297,6 +296,7 @@ func show_selection(items: Array, legacy: String):
 	heading.text = "LolPRO-ON  |  Escolha seu personagem"
 	heading.add_theme_font_size_override("font_size",26)
 	v.add_child(heading)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	build_preview(v)
 	var slots := OptionButton.new()
 	for i in range(4):
@@ -343,8 +343,8 @@ func start_loading():
 	if is_instance_valid(preview_actor):
 		play_preview("Walking")
 		var cinematic := create_tween().set_parallel(true)
-		cinematic.tween_property(preview_actor,"position:z",1.1,1.2)
-		cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),1.2)
+		cinematic.tween_property(preview_actor,"position:z",1.1,2.0)
+		cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),2.0)
 		await cinematic.finished
 	selection.hide()
 	fade = ColorRect.new()
@@ -357,6 +357,16 @@ func start_loading():
 	var v := VBoxContainer.new()
 	v.custom_minimum_size = Vector2(400,0)
 	c.add_child(v)
+	var brand := Label.new()
+	brand.text = "LolPRO-ON"
+	brand.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	brand.add_theme_font_size_override("font_size",42)
+	brand.add_theme_color_override("font_color",Color("e6c478"))
+	v.add_child(brand)
+	var slogan := Label.new()
+	slogan.text = "Sua jornada começa aqui • Evolua até o nível 99"
+	slogan.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(slogan)
 	loading_label = Label.new()
 	loading_label.text = "A jornada de "+character.text+" começa..."
 	loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -373,7 +383,8 @@ func start_loading():
 
 func build_preview(parent: VBoxContainer):
 	var container := SubViewportContainer.new()
-	container.custom_minimum_size = Vector2(440,260)
+	container.custom_minimum_size = Vector2(0,180)
+	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	container.stretch = true
 	parent.add_child(container)
 	var viewport := SubViewport.new()
@@ -403,7 +414,7 @@ func build_preview(parent: VBoxContainer):
 	preview_stage.add_child(pedestal)
 	preview_camera = Camera3D.new()
 	preview_stage.add_child(preview_camera)
-	preview_camera.position = Vector3(0,1.35,4.2)
+	preview_camera.position = Vector3(0,1.2,3.0)
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
@@ -417,5 +428,5 @@ func play_preview(state: String):
 		var ap: AnimationPlayer = node
 		for clip in ap.get_animation_list():
 			if clip == "RESET": continue
-			ap.play(clip)
+			ap.play(clip,-1,0.65 if state == "Walking" else 1.0)
 			break
