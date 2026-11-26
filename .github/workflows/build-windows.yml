@@ -57,6 +57,7 @@ jobs:
           Copy-Item update_windows.ps1 build/update_windows.ps1
           Copy-Item INICIAR_CONTAS.bat build/INICIAR_CONTAS.bat
           Copy-Item REDEFINIR_SENHA.py build/REDEFINIR_SENHA.py
+          Copy-Item RESETAR_CONTAS_TESTE.py build/RESETAR_CONTAS_TESTE.py
           @'
           @echo off
           setlocal
