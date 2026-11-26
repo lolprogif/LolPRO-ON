@@ -68,7 +68,7 @@ func _ready():
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Teste local • use uma senha exclusiva de teste."
 	v.add_child(status)
-	button(v,"Verificar atualizações",func(): OS.shell_open("https://github.com/lolprogif/LolPRO-ON/releases"))
+	button(v,"Baixar jogo / Download",func(): OS.shell_open("https://lolprogif.github.io/LolPRO-ON/"))
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().change_scene_to_file("res://World.tscn"))
