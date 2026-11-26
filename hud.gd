@@ -18,6 +18,8 @@ var gear_names := {"helmet":"Capacete","boots":"Botas","gloves":"Luvas","necklac
 var potions := 5
 var hp := 80
 var hp_bar: ProgressBar
+var xp_bar: ProgressBar
+var wallet_label: Label
 var money: Label
 var stock: Button
 var chat: RichTextLabel
@@ -28,7 +30,7 @@ func style(bg: Color, border: Color) -> StyleBoxFlat:
 	s.bg_color = bg
 	s.set_border_width_all(1)
 	s.border_color = border
-	s.set_corner_radius_all(4)
+	s.set_corner_radius_all(9)
 	s.content_margin_left = 6
 	s.content_margin_right = 6
 	s.content_margin_top = 4
@@ -39,18 +41,25 @@ func _ready():
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	theme_rpg.set_stylebox("panel", "PanelContainer", style(Color("24211def"),Color("b49a62")))
+	theme_rpg.set_stylebox("panel", "PanelContainer", style(Color("10141cdd"),Color("b69a59")))
 	for state in ["normal","hover","pressed","focus"]:
-		theme_rpg.set_stylebox(state,"Button",style(Color("493a2c") if state == "normal" else Color("705536"),Color("ad925e")))
+		theme_rpg.set_stylebox(state,"Button",style(Color("202936ee") if state == "normal" else Color("59472c"),Color("b69a59")))
 	theme_rpg.set_color("font_color","Button",Color("f4dfb1"))
+	theme_rpg.set_color("font_color","Label",Color("f5e6c8"))
+	theme_rpg.set_stylebox("background","ProgressBar",style(Color("090d15"),Color("665537")))
 	theme_rpg.default_font_size = 14
 	root.theme = theme_rpg
 	var top := panel_at(Vector2(12,12),Vector2(220,100))
 	var t := VBoxContainer.new()
 	top.add_child(t)
 	level_label = label(t,"◆  AVENTUREIRO  |  Nv. 1")
-	hp_bar = bar(t, hp, Color("a72e32"))
-	bar(t,100,Color("346ab5"))
+	label(t,"VIDA")
+	hp_bar = bar(t, hp, Color("d04455"))
+	label(t,"MANA")
+	bar(t,100,Color("428bd8"))
+	label(t,"EXPERIÊNCIA")
+	xp_bar = bar(t,0,Color("d9b45d"))
+	wallet_label = label(t,"100 moedas • 5 poções")
 	button(t,"Missões",func(): toggle("Missões"))
 	var bottom := panel_at(Vector2.ZERO,Vector2.ZERO)
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -207,7 +216,7 @@ func button(parent: Node, value: String, action: Callable) -> Button:
 	return b
 func bar(parent: Node, value: int, color: Color) -> ProgressBar:
 	var b := ProgressBar.new()
-	b.custom_minimum_size = Vector2(150,12)
+	b.custom_minimum_size = Vector2(150,14)
 	b.show_percentage = false
 	b.value = value
 	b.add_theme_stylebox_override("fill",style(color,color))
@@ -274,7 +283,11 @@ func item_action(cmd: String):
 		refresh()
 func refresh():
 	level_label.text = "◆ AVENTUREIRO | Nv. %d" % level
-	stats_label.text = "Nível %d • EXP %d / 100" % [level,xp]
+	var target_xp := 100 + (level-1)*50
+	stats_label.text = "Nível %d • EXP %d / %d" % [level,xp,target_xp]
+	xp_bar.max_value = target_xp
+	xp_bar.value = target_xp if level >= 99 else xp
+	wallet_label.text = "%d moedas • %d poções" % [coins,potions]
 	weapon_button.text = "Desequipar espada" if weapon else "Equipar espada"
 	armor_button.text = "Desequipar armadura" if armor else "Equipar armadura"
 	money.text = "Moedas: %d" % coins
