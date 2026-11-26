@@ -32,6 +32,14 @@ func _ready():
 		var controls = preload("res://touch.gd").new()
 		controls.world = world
 		layer.add_child(controls)
+	if get_tree().has_meta("online_endpoint"):
+		var url := str(get_tree().get_meta("online_endpoint"))
+		var server_ip := url.trim_prefix("http://").trim_prefix("https://").get_slice("/",0).get_slice(":",0)
+		address.text = server_ip
+		if not OS.has_feature("mobile") and server_ip in ["127.0.0.1","localhost"]:
+			host()
+		else:
+			join()
 func host():
 	leave()
 	var peer := ENetMultiplayerPeer.new()
