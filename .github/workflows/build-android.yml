@@ -1,16 +1,24 @@
-name: Gerar APK LolPro
+name: Gerar APK LolPRO-ON
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - "latest.json"
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   android:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -23,10 +31,28 @@ jobs:
           packages: 'platform-tools'
 
       - name: Instalar dependencias
-        run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Instalar Godot
+      - name: Definir versão desta compilação
+        shell: bash
+        run: |
+          VERSION="0.9.$(git rev-list --count HEAD)"
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          python3 - "$VERSION" <<'PY'
+          import pathlib, re, sys
+          version = sys.argv[1]
+          p = pathlib.Path("project.godot")
+          p.write_text(re.sub(r'config/version="[^"]+"', f'config/version="{version}"', p.read_text()))
+          p = pathlib.Path("login.gd")
+          p.write_text(re.sub(r'const CURRENT_VERSION := "[^"]+"', f'const CURRENT_VERSION := "{version}"', p.read_text()))
+          p = pathlib.Path("export_presets.cfg")
+          s = p.read_text()
+          s = re.sub(r'(?m)^version/code=.*$', f'version/code={int(version.split(".")[-1]) + 1}', s, count=1)
+          s = re.sub(r'(?m)^version/name=.*$', f'version/name="{version}"', s, count=1)
+          p.write_text(s)
+          PY
+
+      - name: Instalar Godot e templates
         run: |
           V=4.7.2
           URL=https://github.com/godotengine/godot-builds/releases/download/$V-stable
@@ -38,20 +64,41 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates
           mv templates ~/.local/share/godot/export_templates/$V.stable
 
-      - name: Configurar Android para APK de teste
+      - name: Configurar assinatura Android
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p ~/.android ~/.config/godot
-          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
-          printf '[gd_resource type="EditorSettings" format=3]\\n\\n[resource]\\nexport/android/android_sdk_path = "%s"\\nexport/android/java_sdk_path = "%s"\\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
-          python3 - <<'PY'
-          p = "export_presets.cfg"
-          s = open(p, encoding="utf-8").read()
-          marker = "[preset.0.options]\\n"
-          values = 'keystore/debug="/home/runner/.android/debug.keystore"\\nkeystore/debug_user="androiddebugkey"\\nkeystore/debug_password="android"\\n'
-          if marker not in s:
-              raise SystemExit("Preset Android não encontrado")
-          open(p, "w", encoding="utf-8").write(s.replace(marker, marker + values, 1))
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/lolpro-release.keystore"
+            echo "release_signing=true" >> "$GITHUB_OUTPUT"
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path("export_presets.cfg")
+          s=p.read_text()
+          marker="[preset.0.options]"
+          if marker not in s: raise SystemExit("Preset Android não encontrado")
+          values='\nkeystore/release="/home/runner/.android/lolpro-release.keystore"\nkeystore/release_user="' + __import__("os").environ["KEY_ALIAS"] + '"\nkeystore/release_password="' + __import__("os").environ["KEY_PASSWORD"] + '"\n'
+          p.write_text(s.replace(marker, marker+values, 1))
           PY
+          else
+            echo "release_signing=false" >> "$GITHUB_OUTPUT"
+            keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path("export_presets.cfg")
+          s=p.read_text()
+          marker="[preset.0.options]"
+          if marker not in s: raise SystemExit("Preset Android não encontrado")
+          values='\nkeystore/debug="/home/runner/.android/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\n'
+          p.write_text(s.replace(marker, marker+values, 1))
+          PY
+          fi
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
 
       - name: Importar jogo
         run: godot --headless --editor --import
@@ -59,11 +106,51 @@ jobs:
       - name: Gerar APK
         run: |
           mkdir -p build
-          godot --headless --export-debug "Android" build/LolPro.apk
+          if [ "${{ steps.signing.outputs.release_signing }}" = "true" ]; then
+            godot --headless --export-release "Android" build/LolPRO-ON.apk
+          else
+            godot --headless --export-debug "Android" build/LolPRO-ON.apk
+          fi
 
-      - name: Disponibilizar APK
+      - name: Disponibilizar APK para teste
         uses: actions/upload-artifact@v4
         with:
-          name: LolPro-Android-Signed
-          path: build/LolPro.apk
+          name: LolPRO-ON-Android
+          path: build/LolPRO-ON.apk
           if-no-files-found: error
+
+      - name: Publicar APK assinado na Release
+        if: github.event_name == 'push' && steps.signing.outputs.release_signing == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$APP_VERSION"
+          for i in {1..30}; do
+            if gh release view "$TAG" >/dev/null 2>&1; then break; fi
+            sleep 10
+          done
+          gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" build/LolPRO-ON.apk --clobber
+          ASSET_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/LolPRO-ON.apk"
+          for i in {1..8}; do
+            gh api "repos/$GITHUB_REPOSITORY/contents/latest.json" > manifest-response.json
+            python3 - "$ASSET_URL" <<'PY'
+          import base64, json, pathlib, sys
+          d=json.loads(pathlib.Path("manifest-response.json").read_text())
+          content=json.loads(base64.b64decode(d["content"]))
+          content["android_url"]=sys.argv[1]
+          pathlib.Path("manifest-content.json").write_text(json.dumps(content,indent=2)+"\n")
+          pathlib.Path("manifest-sha.txt").write_text(d["sha"])
+          PY
+            CONTENT=$(base64 -w 0 manifest-content.json)
+            SHA=$(cat manifest-sha.txt)
+            if gh api "repos/$GITHUB_REPOSITORY/contents/latest.json" -X PUT -f message="Publish Android APK $APP_VERSION" -f content="$CONTENT" -f sha="$SHA" -f branch=main; then exit 0; fi
+            sleep 4
+          done
+          echo "APK enviado à Release, mas não foi possível atualizar latest.json após várias tentativas." >&2
+          exit 1
+
+      - name: Avisar que a chave de publicação Android ainda não foi configurada
+        if: github.event_name == 'push' && steps.signing.outputs.release_signing != 'true'
+        run: echo "::warning::APK gerado apenas para teste com chave temporária. Configure os quatro secrets ANDROID_* para publicar atualizações Android que instalem sobre versões anteriores."
