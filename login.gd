@@ -91,6 +91,7 @@ func _ready():
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().remove_meta("online_token")
+		get_tree().remove_meta("hud_profile")
 		get_tree().change_scene_to_file("res://World.tscn"))
 	
 func open_register_window():
@@ -264,4 +265,5 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().set_meta("online_token",token)
+		get_tree().set_meta("hud_profile",user.text.strip_edges().to_lower())
 		get_tree().change_scene_to_file("res://World.tscn")
