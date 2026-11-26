@@ -254,7 +254,8 @@ func show_gear(actor: Node3D, data: Dictionary):
 	var flags: Dictionary = data.get("gear",{}).duplicate()
 	flags["weapon"] = int(data.get("weapon",0))
 	flags["armor"] = int(data.get("armor",0))
-	var signature := JSON.stringify(flags)
+	var ranks: Dictionary = data.get("ranks",{})
+	var signature := JSON.stringify([flags,ranks])
 	if actor.get_meta("gear_signature","") == signature: return
 	actor.set_meta("gear_signature",signature)
 	var old := actor.get_node_or_null("VisibleGear")
@@ -282,6 +283,8 @@ func show_gear(actor: Node3D, data: Dictionary):
 		mesh.material_override = mat
 		holder.add_child(mesh)
 		mesh.position = parts[key][0]
+		var rank := int(ranks.get(key,1))
+		if rank >= 7: refinement_glow(mesh,mat,rank)
 		if key == "weapon":
 			add_gear_detail(mesh,Vector3(0,-0.39,0),Vector3(0.25,0.045,0.09),Color("c5a052"))
 			add_gear_detail(mesh,Vector3(0,-0.49,0),Vector3(0.055,0.18,0.06),Color("493323"))
@@ -323,3 +326,42 @@ func add_gear_detail(parent: Node3D, offset: Vector3, dimensions: Vector3, color
 	detail.material_override = mat
 	parent.add_child(detail)
 	detail.position = offset
+
+func refinement_glow(mesh: MeshInstance3D, mat: StandardMaterial3D, rank: int):
+	mat.emission_enabled = true
+	mat.emission = Color("ffd36a")
+	mat.emission_energy_multiplier = 0.22 if rank == 7 else (0.55 if rank == 8 else 1.15)
+	var sparks := GPUParticles3D.new()
+	sparks.amount = 6 if rank == 7 else (14 if rank == 8 else 32)
+	sparks.lifetime = 0.65
+	sparks.local_coords = true
+	sparks.visibility_aabb = AABB(Vector3(-2,-2,-2),Vector3(4,4,4))
+	var motion := ParticleProcessMaterial.new()
+	motion.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	motion.emission_box_extents = mesh.mesh.get_aabb().size * 0.5
+	motion.direction = Vector3.UP
+	motion.spread = 85.0
+	motion.initial_velocity_min = 0.12
+	motion.initial_velocity_max = 0.45 if rank < 9 else 0.85
+	motion.gravity = Vector3(0,-0.35,0)
+	motion.scale_min = 0.45
+	motion.scale_max = 1.0
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color(1,0.95,0.55,1),Color(1,0.55,0.08,0)])
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	motion.color_ramp = ramp
+	sparks.process_material = motion
+	var dot := QuadMesh.new()
+	dot.size = Vector2(0.025,0.025) if rank < 9 else Vector2(0.045,0.045)
+	var gold := StandardMaterial3D.new()
+	gold.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gold.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gold.vertex_color_use_as_albedo = true
+	gold.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	gold.emission_enabled = true
+	gold.emission = Color("ffce55")
+	dot.material = gold
+	sparks.draw_pass_1 = dot
+	mesh.add_child(sparks)
+	sparks.emitting = true
