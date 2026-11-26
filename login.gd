@@ -409,7 +409,8 @@ func send(a: String,data: Dictionary):
 	if err != OK: status.text = "Erro / Request error"
 func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArray):
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		status.text = "Servidor indisponível / Server unavailable"
+		var detail := body.get_string_from_utf8().substr(0,180)
+		status.text = "Servidor indisponível • conexão %d • HTTP %d\n%s" % [result,code,detail]
 		return
 	var d = JSON.parse_string(body.get_string_from_utf8())
 	if not d is Dictionary or not d.get("ok",false):
