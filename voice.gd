@@ -17,6 +17,7 @@ var bus_index := -1
 var phase := 0.0
 const RATE := 16000
 func _ready():
+	add_to_group("voice_controls")
 	add_child(req)
 	req.timeout = 5
 	req.request_completed.connect(received)
@@ -62,6 +63,7 @@ func _ready():
 	layer.add_child(quick_mic)
 	quick_mic.pressed.connect(toggle_mic)
 	refresh_mic_icon()
+	if OS.has_feature("mobile"): quick_mic.hide()
 	AudioServer.add_bus()
 	bus_index = AudioServer.bus_count-1
 	AudioServer.set_bus_name(bus_index,"VoiceCapture")
