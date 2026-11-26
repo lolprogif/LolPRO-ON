@@ -32,5 +32,15 @@ class Handler(BaseHTTPRequestHandler):
   except (ValueError,TypeError,AttributeError) as e: self.reply({'ok':False,'error':str(e)})
  def reply(self,d):
   b=json.dumps(d).encode(); self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
+def discovery():
+ import socket
+ with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock:
+  sock.bind(('0.0.0.0',8081))
+  while True:
+   data,addr=sock.recvfrom(256)
+   if data==b'LOLPRO_DISCOVER_V1':
+    sock.sendto(b'LOLPRO_SERVER_V1',addr)
 if __name__=='__main__':
+ import threading
+ threading.Thread(target=discovery,daemon=True).start()
  print('Account test server: port 8080. Private network only.',flush=True); ThreadingHTTPServer(('0.0.0.0',8080),Handler).serve_forever()
