@@ -24,6 +24,7 @@ const UPDATE_MANIFEST := "https://raw.githubusercontent.com/lolprogif/LolPRO-ON/
 var action := ""
 var token := ""
 var login_center: CenterContainer
+var login_layout: HBoxContainer
 var selected_slot := 0
 var slot_names := {}
 var slot_profiles := {}
@@ -62,6 +63,7 @@ func _ready():
 	# Arte oficial de fantasia como fundo integral da tela de login.
 
 	var layout := HBoxContainer.new()
+	login_layout = layout
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layout.add_theme_constant_override("separation", 0)
 	add_child(layout)
@@ -432,7 +434,7 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		start_loading()
 
 func show_selection(items: Array, legacy: String):
-	login_center.hide()
+	login_layout.hide()
 	slot_names.clear()
 	slot_profiles.clear()
 	for item in items:
@@ -442,6 +444,11 @@ func show_selection(items: Array, legacy: String):
 	selection = MarginContainer.new()
 	add_child(selection)
 	selection.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var selection_bg := ColorRect.new()
+	selection_bg.color = Color("101b29")
+	selection_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	selection_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	selection.add_child(selection_bg)
 	var panel := PanelContainer.new()
 	selection.add_child(panel)
 	var v := VBoxContainer.new()
@@ -494,7 +501,7 @@ func show_selection(items: Array, legacy: String):
 	button(v,"Voltar",func():
 		token = ""
 		selection.queue_free()
-		login_center.show()
+		login_layout.show()
 		status = login_center.find_child("LoginStatus",true,false) as Label
 		if status: status.text = "Entre com sua conta.")
 	status = Label.new()
