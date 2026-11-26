@@ -272,6 +272,7 @@ func toggle(n: String):
 	if windows.has(n):
 		windows[n].visible = not windows[n].visible
 func apply_progress(data: Dictionary):
+	hp_bar.max_value = int(data.get("max_hp",100))
 	update_pet(data.get("pet",{}))
 	var ranks: Dictionary = data.get("ranks",{})
 	for key in upgrade_buttons:
@@ -423,6 +424,7 @@ func update_pet(data: Dictionary):
 	var goal: Array = data.get("goal",[20,20])
 	pet_status.text = "Nível %d / 99 • EXP %d\nMissão: explore X %d, Z %d" % [lv,int(data.get("xp",0)),int(goal[0]),int(goal[1])]
 	if lv >= 99: pet_status.text = "Nível 99 • evolução máxima"
+	pet_status.text += "\nATQ +%d  DEF +%d  VIDA +%d" % [int(data.get("attack",0)),int(data.get("defense",0)),int(data.get("life",0))]
 	pet_exp.max_value = 100+(lv-1)*50
 	pet_exp.value = pet_exp.max_value if lv>=99 else int(data.get("xp",0))
 	pet_toggle.disabled = false
@@ -436,8 +438,33 @@ func update_pet(data: Dictionary):
 		pet_part(Vector3(-0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
 		pet_part(Vector3(0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
 		pet_part(Vector3(0,0,0.38),Vector3(0.09,0.09,0.35),Color("d9a344"))
+		pet_part(Vector3(-0.10,0.34,-0.25),Vector3(0.04,0.12,0.04),Color("f5e6c8"))
+		pet_part(Vector3(0.10,0.34,-0.25),Vector3(0.04,0.12,0.04),Color("f5e6c8"))
+		pet_part(Vector3(-0.09,0.23,-0.43),Vector3(0.035,0.035,0.035),Color("17151a"))
+		pet_part(Vector3(0.09,0.23,-0.43),Vector3(0.035,0.035,0.035),Color("17151a"))
+		var aura := MeshInstance3D.new()
+		aura.name = "EvolutionAura"
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.48
+		ring.outer_radius = 0.55
+		aura.mesh = ring
+		aura.position.y = -0.25
+		var glow := StandardMaterial3D.new()
+		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		glow.emission_enabled = true
+		aura.material_override = glow
+		pet_model.add_child(aura)
 	if is_instance_valid(pet_model):
 		pet_model.visible = active
+		var stage := mini(5,floori(float(lv)/20.0))
+		if lv == 99: stage = 5
+		var colors := [Color("d9a344"),Color("65cf82"),Color("55aaff"),Color("b87aff"),Color("ff7044"),Color("fff2a0")]
+		var aura := pet_model.get_node("EvolutionAura") as MeshInstance3D
+		aura.visible = stage > 0
+		var glow := aura.material_override as StandardMaterial3D
+		glow.albedo_color = colors[stage]
+		glow.emission = colors[stage]
+		glow.emission_energy_multiplier = 1.0+stage*0.5
 		pet_model.scale = Vector3.ONE * (1.0+float(lv-1)/100.0)
 func pet_part(pos: Vector3, sz: Vector3, color: Color):
 	var part := MeshInstance3D.new()
