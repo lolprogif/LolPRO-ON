@@ -64,6 +64,9 @@ func _ready():
 		bar.add_child(skill_button)
 		skill_buttons.append(skill_button)
 		skill_button.pressed.connect(request_skill.bind(i))
+	var admin = preload("res://admin_panel.gd").new()
+	admin.net = self
+	layer.add_child(admin)
 	var voice = preload("res://voice.gd").new()
 	voice.net = self
 	add_child(voice)
