@@ -71,13 +71,23 @@ func _ready():
 	col.shape = capsule
 	col.position.y = 0.9
 	player.add_child(col)
-	for state in ["Idle","Walking","Running","Jumping"]:
-		var scene = load("res://assets/"+state+".fbx")
-		if scene is PackedScene:
-			var model = scene.instantiate()
-			player.add_child(model)
-			model.hide()
-			models[state] = model
+	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
+	var avatar_file := {"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"Character.fbx")
+	var avatar_scene = load("res://assets/"+avatar_file)
+	if avatar_scene is PackedScene:
+		var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
+		player.add_child(avatar_model)
+		models["Avatar"] = avatar_model
+		models["Idle"] = avatar_model
+	else:
+		push_error("Modelo não importado: "+avatar_file)
+		for state in ["Idle","Walking","Running","Jumping"]:
+			var fallback = load("res://assets/"+state+".fbx")
+			if fallback is PackedScene:
+				var model = fallback.instantiate()
+				player.add_child(model)
+				model.hide()
+				models[state] = model
 	if models.is_empty():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
@@ -93,11 +103,29 @@ func _ready():
 	net.world = self
 	add_child(net)
 func animate(state):
-	if state == current or not models.has(state): return
-	if models.has(current): models[current].hide()
+	if state == current: return
 	current = state
+	if models.has("Avatar"):
+		var actor: Node3D = models["Avatar"]
+		actor.show()
+		var anim = actor.find_children("*","AnimationPlayer",true,false)
+		if not anim.is_empty():
+			var ap: AnimationPlayer = anim[0]
+			var desired := ""
+			var candidates := {"Idle":["Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","FreeRunning"]}
+			for candidate in candidates.get(state,["FreeRunning"]):
+				if ap.has_animation(candidate):
+					desired = candidate
+					break
+			if not desired.is_empty():
+				ap.stop()
+				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
+				ap.play(desired)
+		return
+	if not models.has(state): return
+	for key in models:
+		models[key].visible = key == state
 	var model = models[state]
-	model.show()
 	var anim = model.find_children("*","AnimationPlayer",true,false)
 	if not anim.is_empty():
 		var ap = anim[0]
@@ -106,9 +134,7 @@ func animate(state):
 				ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				remove_horizontal_motion(ap, clip, state == "Jumping")
 				ap.stop()
-				var rate: float = ap.get_animation(clip).length / JUMP_DURATION if state == "Jumping" else 1.0
-				ap.play(clip, 0.0, rate)
-				ap.advance(0.0)
+				ap.play(clip)
 				break
 func _unhandled_input(event):
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
