@@ -1,4 +1,6 @@
-import json, sqlite3, hashlib, secrets, hmac, os, re
+import json, sqlite3, hashlib, secrets, hmac, os, re, math, threading, time
+players = {}
+world_lock = threading.Lock()
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 DB=os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
 with sqlite3.connect(DB) as db:
@@ -6,6 +8,8 @@ with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, expires INTEGER)')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
+ def do_GET(self):
+  self.reply({'ok':True,'service':'LolPRO-ON','world_protocol':1})
  def do_POST(self):
   import time
   try:
@@ -21,6 +25,20 @@ class Handler(BaseHTTPRequestHandler):
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
      token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2]})
+    elif self.path=='/world':
+     row=db.execute('SELECT accounts.username, accounts.character FROM sessions JOIN accounts ON sessions.username=accounts.username WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
+     if not row or not row[1]: raise ValueError('Invalid session or character')
+     pos=d.get('pos')
+     angle=d.get('angle')
+     state=d.get('state')
+     if not isinstance(pos,list) or len(pos)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<=150 for v in pos) or type(angle) not in (int,float) or not math.isfinite(angle) or state not in ('Idle','Walking','Running','Jumping'): raise ValueError('Invalid movement')
+     now=time.monotonic()
+     with world_lock:
+      for key in list(players):
+       if now-players[key]['seen']>15: del players[key]
+      players[row[0]]={'id':row[0],'name':row[1],'pos':pos,'angle':angle,'state':state,'seen':now}
+      others=[{k:v for k,v in item.items() if k!='seen'} for key,item in players.items() if key!=row[0]]
+     return self.reply({'ok':True,'players':others})
     elif self.path=='/character':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      name=str(d.get('character','')).strip()
@@ -43,4 +61,4 @@ def discovery():
 if __name__=='__main__':
  import threading
  threading.Thread(target=discovery,daemon=True).start()
- print('Account test server: port 8080. Private network only.',flush=True); ThreadingHTTPServer(('0.0.0.0',8080),Handler).serve_forever()
+ print('Account test server: port 8080. Private network only.',flush=True); ThreadingHTTPServer(('0.0.0.0',int(os.environ.get('PORT','8080'))),Handler).serve_forever()
