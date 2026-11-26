@@ -34,11 +34,12 @@ jobs:
           New-Item -ItemType Directory -Force build | Out-Null
           & "$env:GODOT_EXE" --headless --path . --export-release "Windows Desktop" build/LolPRO-ON.exe
 
-      - name: Incluir servidor de contas e inicializadores
+      - name: Incluir servidor, recuperacao de conta e inicializadores
         shell: pwsh
         run: |
           Copy-Item account_server.py build/account_server.py
           Copy-Item INICIAR_CONTAS.bat build/INICIAR_CONTAS.bat
+          Copy-Item REDEFINIR_SENHA.py build/REDEFINIR_SENHA.py
           @'
           @echo off
           setlocal
@@ -57,10 +58,12 @@ jobs:
           @'
           LolPRO-ON V0.9 - pacote Windows de teste
 
-          INICIAR_LOLPRO.bat inicia o servidor de contas oculto em segundo plano
-          (se a porta 8080 ainda nao estiver em uso) e abre o jogo.
+          INICIAR_LOLPRO.bat inicia o servidor de contas em segundo plano e abre o jogo.
           INICIAR_CONTAS.bat inicia o servidor manualmente para diagnostico.
-          Requer Python 3 instalado no PC.
+          REDEFINIR_SENHA.py redefine a senha localmente sem apagar o personagem.
+          Para recuperar: feche o servidor, execute "py -3 REDEFINIR_SENHA.py"
+          nesta pasta, informe o usuario e a nova senha; depois reabra o servidor.
+          Requer Python 3 instalado.
 
           PC + Android:
           1. PC e telefone na mesma rede Wi-Fi/LAN.
@@ -73,10 +76,9 @@ jobs:
           UDP 7000 (jogo).
 
           ATENCAO:
-          - O servidor de contas usa HTTP sem criptografia: somente rede privada.
+          - Servidor HTTP sem criptografia: use somente em rede privada.
           - accounts.sqlite3 e criado automaticamente na primeira inicializacao.
-          - Conta/personagem nao sincroniza inventario, progresso ou mundo.
-          - O servidor precisa permanecer ativo enquanto o telefone usar a conta.
+          - Cadastro/personagem nao sincroniza inventario, progresso ou mundo.
           '@ | Set-Content -Encoding UTF8 build/LEIA-ME-WINDOWS.txt
 
       - name: Disponibilizar pacote Windows completo
