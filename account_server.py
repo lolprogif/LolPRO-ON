@@ -11,6 +11,9 @@ with sqlite3.connect(DB) as db:
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS characters (username TEXT, slot INTEGER, name TEXT, PRIMARY KEY(username,slot))')
  db.execute('INSERT OR IGNORE INTO characters SELECT username,0,character FROM accounts WHERE character != ""')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS progress (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, potions INTEGER DEFAULT 5, weapon INTEGER DEFAULT 0, armor INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
+ db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -59,6 +62,11 @@ class Handler(BaseHTTPRequestHandler):
     elif self.path=='/world':
      row=db.execute('SELECT accounts.username, accounts.character FROM sessions JOIN accounts ON sessions.username=accounts.username WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row or not row[1]: raise ValueError('Invalid session or character')
+     chosen=db.execute('SELECT slot FROM session_slots WHERE token=?',(str(d.get('token','')),)).fetchone()
+     slot=chosen[0] if chosen else 0
+     char=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(row[0],slot)).fetchone()
+     if not char: raise ValueError('Select character')
+     row=(row[0],char[0])
      pos=d.get('pos')
      angle=d.get('angle')
      state=d.get('state')
@@ -67,7 +75,19 @@ class Handler(BaseHTTPRequestHandler):
      with world_lock:
       for key in list(players):
        if now-players[key]['seen']>15: del players[key]
+      db.execute('INSERT OR IGNORE INTO progress(username,slot) VALUES(?,?)',(row[0],slot))
+      saved=db.execute('SELECT level,xp,coins,potions,weapon,armor FROM progress WHERE username=? AND slot=?',(row[0],slot)).fetchone()
+      if row[0] in players and players[row[0]].get('slot')!=slot: del players[row[0]]
       me=players.setdefault(row[0],{'id':row[0],'hp':100,'last_attack':-100,'attack_seq':'','respawn_at':0,'generation':0,'potions':5,'potion_seq':''})
+      me.update(slot=slot,level=saved[0],xp=saved[1],coins=saved[2],potions=saved[3],weapon=saved[4],armor=saved[5])
+      item=str(d.get('item',''))[:80]
+      if item and item!=me.get('item_seq',''):
+       me['item_seq']=item
+       cmd=d.get('item_action')
+       if cmd=='buy_potion' and me['coins']>=10: me['coins']-=10; me['potions']+=1
+       elif cmd=='sell_potion' and me['potions']>0: me['coins']+=5; me['potions']-=1
+       elif cmd=='weapon': me['weapon']=1-me['weapon']
+       elif cmd=='armor': me['armor']=1-me['armor']
       if me['hp']==0 and now>=me['respawn_at']:
        me['hp']=100; me['generation']+=1
       if d.get('generation',0)!=me['generation']: pos=[0,0.1,0]
@@ -82,15 +102,22 @@ class Handler(BaseHTTPRequestHandler):
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
          if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
-          target['hp']=max(0,target['hp']-10)
-          if target['hp']==0: target['respawn_at']=now+3
+          target['hp']=max(0,target['hp']-max(1,10+5*me['weapon']-3*target.get('armor',0)))
+          if target['hp']==0:
+           target['respawn_at']=now+3
+           me['xp']+=20; me['coins']+=5
+           if me['xp']>=100: me['xp']-=100; me['level']+=1
       potion=str(d.get('potion',''))[:80]
       if potion and potion!=me['potion_seq']:
        me['potion_seq']=potion
        if 0<me['hp']<100 and me['potions']>0:
         me['potions']-=1; me['hp']=min(100,me['hp']+20)
       others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq')} for key,item in players.items() if key!=row[0]]
-      own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq')}
+      updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
+      if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
+      own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
+      own['item_seq']=me.get('item_seq','')
+      db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
     elif self.path=='/character':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
@@ -102,6 +129,7 @@ class Handler(BaseHTTPRequestHandler):
      if existing and existing[0]!=name: raise ValueError('Slot already occupied')
      db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
+     db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
     else: raise ValueError('Unknown endpoint')
    self.reply({'ok':True})
   except sqlite3.IntegrityError: self.reply({'ok':False,'error':'Account already exists'})
