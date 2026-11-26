@@ -1,0 +1,6 @@
+V0.8 - Preparacao Android (nao inclui APK)
+Importe project.godot na Godot. Instale os modelos de exportacao da mesma versao pelo menu Editor > Gerenciar modelos de exportacao.
+Instale Android Studio, Android SDK e JDK 17. Configure os caminhos Android SDK e Java SDK nas configuracoes do editor, Exportacao > Android.
+Em Projeto > Exportar, selecione Android e Exportar projeto (debug). Se solicitado, configure a chave de debug. Transfira o APK ao telefone.
+Para teste offline, escolha Modo offline. Para cadastro, execute INICIAR_CONTAS.bat no PC e use ipconfig para encontrar o IPv4 da rede Wi-Fi. Substitua o endereco de exemplo no login pelo IP real do PC, mantendo http:// e :8080. Ambos na mesma rede privada. Use senha exclusiva de teste: HTTP nao criptografado. Nao exponha o servidor na internet. Para multiplayer, hospede no PC e conecte pelo IP no menu Rede. Firewall pode precisar permitir TCP 8080 e UDP 7000 na rede privada.
+Exportacao e funcionamento no telefone ainda nao testados.

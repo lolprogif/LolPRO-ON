@@ -1,0 +1,96 @@
+extends Control
+var endpoint: LineEdit
+var user: LineEdit
+var email: LineEdit
+var password: LineEdit
+var character: LineEdit
+var status: Label
+var req := HTTPRequest.new()
+var action := ""
+var token := ""
+var language: OptionButton
+var title_label: Label
+func _ready():
+	add_child(req)
+	req.timeout = 12
+	req.request_completed.connect(done)
+	var bg := ColorRect.new()
+	bg.color = Color("17252e")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(440,0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("30271f")
+	style.border_color = Color("b69a60")
+	style.set_border_width_all(2)
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 18
+	style.content_margin_bottom = 18
+	panel.add_theme_stylebox_override("panel",style)
+	center.add_child(panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation",8)
+	panel.add_child(v)
+	title_label = Label.new()
+	title_label.text = "RPG • Mundo Internacional"
+	title_label.add_theme_font_size_override("font_size",26)
+	v.add_child(title_label)
+	language = OptionButton.new()
+	for s in ["Brasil • Português", "International • English", "España • Español"]: language.add_item(s)
+	v.add_child(language)
+	endpoint = field(v,"Servidor / Server","http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080")
+	var channel := Label.new()
+	channel.text = "Servidor de teste / Test server • CH1"
+	v.add_child(channel)
+	user = field(v,"Usuário / Username")
+	email = field(v,"E-mail (cadastro / registration)")
+	password = field(v,"Senha / Password")
+	password.secret = true
+	button(v,"Criar conta / Register",func(): send("register",{"username":user.text,"email":email.text,"password":password.text}))
+	button(v,"Entrar / Login",func(): send("login",{"username":user.text,"password":password.text}))
+	character = field(v,"Nome do personagem / Character name")
+	button(v,"Salvar personagem e jogar / Save & play",func():
+		if token.is_empty(): status.text = "Entre na conta primeiro / Login first"
+		else: send("character",{"token":token,"character":character.text}))
+	status = Label.new()
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status.text = "Teste local • use uma senha exclusiva de teste."
+	v.add_child(status)
+	button(v,"Modo offline / Offline",func(): get_tree().change_scene_to_file("res://World.tscn"))
+func field(v: VBoxContainer,hint: String,value: String = "") -> LineEdit:
+	var f := LineEdit.new()
+	f.placeholder_text = hint
+	f.text = value
+	v.add_child(f)
+	return f
+func button(v: VBoxContainer,label: String,cb: Callable):
+	var b := Button.new()
+	b.text = label
+	v.add_child(b)
+	b.pressed.connect(cb)
+func send(a: String,data: Dictionary):
+	if req.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED: return
+	action = a
+	status.text = "Conectando / Connecting..."
+	var err := req.request(endpoint.text.strip_edges().trim_suffix("/")+"/"+a,["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(data))
+	if err != OK: status.text = "Erro / Request error"
+func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArray):
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		status.text = "Servidor indisponível / Server unavailable"
+		return
+	var d = JSON.parse_string(body.get_string_from_utf8())
+	if not d is Dictionary or not d.get("ok",false):
+		status.text = str(d.get("error","Error")) if d is Dictionary else "Invalid response"
+		return
+	if action == "register": status.text = "Conta criada! Faça login / Account created"
+	elif action == "login":
+		token = d.token
+		character.text = d.character
+		password.clear()
+		status.text = "Escolha seu personagem / Choose character"
+	elif action == "character": get_tree().change_scene_to_file("res://World.tscn")
