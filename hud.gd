@@ -265,6 +265,8 @@ func _create_control_button(caption: String, key: String, fallback: Vector2) -> 
 	root.add_child(b)
 	b.position = layout_positions.get(key,fallback) * get_viewport().get_visible_rect().size
 	b.gui_input.connect(func(event): _layout_button_input(event,b,key))
+	if key == "jump" and OS.has_feature("mobile"):
+		b.hide()
 	return b
 
 func _layout_button_input(event: InputEvent, target: Control, key: String):
@@ -321,8 +323,8 @@ func _reset_layout():
 		b.position = layout_positions[pair[1]]*get_viewport().get_visible_rect().size
 		b.custom_minimum_size = Vector2(100,50)
 		b.size = b.custom_minimum_size
-	if world.has_node("Network/TouchControls"):
-		world.get_node("Network/TouchControls").reset_layout()
+	for control in get_tree().get_nodes_in_group("touch_controls"):
+		if control.has_method("reset_layout"): control.reset_layout()
 	_save_layout()
 
 func _save_layout():
