@@ -85,16 +85,6 @@ func _ready():
 	v.add_child(remember_user)
 	button(v,"Entrar",func(): send("login",{"username":user.text,"password":password.text}))
 	button(v,"Criar conta",open_register_window)
-	character = field(v,"Nome do personagem / Character name")
-	character.visible = false
-	var play_button := Button.new()
-	play_button.name = "PlayButton"
-	play_button.text = "Salvar personagem e jogar / Save & play"
-	play_button.visible = false
-	v.add_child(play_button)
-	play_button.pressed.connect(func():
-		if token.is_empty(): status.text = "Entre na conta primeiro / Login first"
-		else: send("character",{"token":token,"character":character.text}))
 	status = Label.new()
 	status.name = "LoginStatus"
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
