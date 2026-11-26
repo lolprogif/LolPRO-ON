@@ -11,6 +11,8 @@ var token := ""
 var settings := ConfigFile.new()
 var language: OptionButton
 var title_label: Label
+var discovery := PacketPeerUDP.new()
+var discovery_left := 0.0
 func _ready():
 	add_child(req)
 	req.timeout = 12
@@ -38,7 +40,7 @@ func _ready():
 	v.add_theme_constant_override("separation",8)
 	panel.add_child(v)
 	title_label = Label.new()
-	title_label.text = "RPG • Mundo Internacional"
+	title_label.text = "LolPRO-ON • V0.9"
 	title_label.add_theme_font_size_override("font_size",26)
 	v.add_child(title_label)
 	language = OptionButton.new()
@@ -47,6 +49,7 @@ func _ready():
 	endpoint = field(v,"Servidor / Server","http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080")
 	settings.load("user://login.cfg")
 	endpoint.text = str(settings.get_value("login","server",endpoint.text))
+	button(v,"Localizar servidor",find_server)
 	var channel := Label.new()
 	channel.text = "Servidor de teste / Test server • CH1"
 	v.add_child(channel)
@@ -69,6 +72,35 @@ func _ready():
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
 		get_tree().change_scene_to_file("res://World.tscn"))
+	if OS.has_feature("mobile"):
+		find_server()
+func find_server():
+	if not OS.has_feature("mobile"):
+		endpoint.text = "http://127.0.0.1:8080"
+		return
+	discovery.close()
+	if discovery.bind(0) != OK:
+		status.text = "Não foi possível procurar o servidor."
+		return
+	discovery.set_broadcast_enabled(true)
+	discovery.set_dest_address("255.255.255.255",8081)
+	discovery.put_packet("LOLPRO_DISCOVER_V1".to_utf8_buffer())
+	discovery_left = 4.0
+	status.text = "Procurando servidor na rede local..."
+func _process(delta):
+	if discovery_left <= 0.0: return
+	discovery_left -= delta
+	while discovery.get_available_packet_count() > 0:
+		var packet := discovery.get_packet()
+		if packet.get_string_from_utf8() == "LOLPRO_SERVER_V1":
+			endpoint.text = "http://" + discovery.get_packet_ip() + ":8080"
+			status.text = "Servidor localizado. Confira o endereço antes de entrar."
+			discovery_left = 0.0
+			discovery.close()
+			return
+	if discovery_left <= 0.0:
+		discovery.close()
+		status.text = "Servidor não localizado. Confira o Wi-Fi ou informe o IP manualmente."
 func field(v: VBoxContainer,hint: String,value: String = "") -> LineEdit:
 	var f := LineEdit.new()
 	f.placeholder_text = hint
