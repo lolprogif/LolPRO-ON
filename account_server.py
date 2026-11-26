@@ -20,6 +20,15 @@ with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 1, PRIMARY KEY(username,slot,kind))')
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS class_profiles (username TEXT, slot INTEGER, class TEXT, gender TEXT, PRIMARY KEY(username,slot))')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, permissions TEXT)')
+ db.execute('CREATE TABLE IF NOT EXISTS admin_audit (username TEXT, command TEXT, created INTEGER)')
+ db.execute('CREATE TABLE IF NOT EXISTS bans (username TEXT PRIMARY KEY)')
+def admin_permissions(db,u):
+ owner=os.environ.get('LOLPRO_OWNER','').strip().lower()
+ if owner and u==owner: return ['owner','curar','nivel','dinheiro','adm','removeradm','ban','desban']
+ row=db.execute('SELECT permissions FROM admins WHERE username=?',(u,)).fetchone()
+ return json.loads(row[0]) if row else []
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -38,7 +47,52 @@ class Handler(BaseHTTPRequestHandler):
     elif self.path=='/login':
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
+     if db.execute('SELECT 1 FROM bans WHERE username=?',(u,)).fetchone(): raise ValueError('Conta banida')
      token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name,'class':cl,'gender':gender} for i,name,cl,gender in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot WHERE c.username=? ORDER BY c.slot",(u,))]})
+    elif self.path=='/admin':
+     row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
+     if not row: raise ValueError('Invalid session')
+     uid=row[0]
+     perms=admin_permissions(db,uid)
+     cmd=str(d.get('command','')).strip()[:200]
+     if not cmd: return self.reply({'ok':True,'permissions':perms})
+     parts=cmd.lstrip('/').split()
+     op=parts[0].lower()
+     if op not in perms: raise ValueError('Sem permissão')
+     if op in ('adm','removeradm','ban','desban'):
+      if len(parts)<2: raise ValueError('Informe o usuário')
+      target=parts[1].lower()
+      if not db.execute('SELECT 1 FROM accounts WHERE username=?',(target,)).fetchone(): raise ValueError('Usuário inexistente')
+      if target==os.environ.get('LOLPRO_OWNER','').strip().lower(): raise ValueError('Conta protegida')
+      if op=='adm':
+       allowed={'curar','nivel','dinheiro','ban','desban'}
+       grants=parts[2:]
+       if not set(grants)<=allowed: raise ValueError('Permissão inválida')
+       db.execute('INSERT OR REPLACE INTO admins VALUES(?,?)',(target,json.dumps(grants)))
+      elif op=='removeradm': db.execute('DELETE FROM admins WHERE username=?',(target,))
+      elif op=='ban':
+       db.execute('INSERT OR IGNORE INTO bans VALUES(?)',(target,))
+       db.execute('DELETE FROM sessions WHERE username=?',(target,))
+       with world_lock: players.pop(target,None)
+      else: db.execute('DELETE FROM bans WHERE username=?',(target,))
+     else:
+      chosen=db.execute('SELECT slot FROM session_slots WHERE token=?',(str(d.get('token','')),)).fetchone()
+      if not chosen: raise ValueError('Selecione personagem')
+      slot=chosen[0]
+      with world_lock:
+       me=players.get(uid)
+       if op=='curar':
+        if not me or me['hp']<=0: raise ValueError('Personagem indisponível')
+        me['hp']=100; me['mana']=100
+       else:
+        if len(parts)!=2: raise ValueError('Informe um valor')
+        value=int(parts[1])
+        if op=='nivel' and 1<=value<=99: db.execute('UPDATE progress SET level=?,xp=0 WHERE username=? AND slot=?',(value,uid,slot))
+        elif op=='dinheiro' and 0<value<=1000000: db.execute('UPDATE progress SET coins=coins+? WHERE username=? AND slot=?',(value,uid,slot))
+        else: raise ValueError('Valor inválido')
+     db.execute('INSERT INTO admin_audit VALUES(?,?,?)',(uid,cmd,int(time.time())))
+     db.commit()
+     return self.reply({'ok':True,'message':'Comando executado'})
     elif self.path=='/voice':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row: raise ValueError('Invalid session')
