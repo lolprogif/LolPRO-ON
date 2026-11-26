@@ -59,15 +59,6 @@ func _ready():
 	add_child(bg)
 
 	# Arte oficial de fantasia como fundo integral da tela de login.
-	var wallpaper := TextureRect.new()
-	wallpaper.name = "LoginWallpaper"
-	wallpaper.texture = load("res://assets/login_background.jpg")
-	wallpaper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	wallpaper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	wallpaper.stretch_mode = TextureRect.STRETCH_SCALE
-	wallpaper.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(wallpaper)
-	move_child(wallpaper, 1)
 
 	var layout := HBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -78,13 +69,23 @@ func _ready():
 	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hero.size_flags_stretch_ratio = 1.15
 	var hero_style := StyleBoxFlat.new()
-	hero_style.bg_color = Color("172a35")
+	hero_style.bg_color = Color(0.04, 0.09, 0.13, 0.28)
 	hero_style.content_margin_left = 48
 	hero_style.content_margin_right = 48
 	hero_style.content_margin_top = 40
 	hero_style.content_margin_bottom = 40
 	hero.add_theme_stylebox_override("panel", hero_style)
 	layout.add_child(hero)
+
+	var wallpaper := TextureRect.new()
+	wallpaper.name = "LoginWallpaper"
+	wallpaper.texture = load("res://assets/login_background.jpg")
+	wallpaper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	wallpaper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	wallpaper.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	wallpaper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero.add_child(wallpaper)
+	hero.move_child(wallpaper, 0)
 
 	var hero_box := VBoxContainer.new()
 	hero_box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -121,7 +122,7 @@ func _ready():
 	features.add_theme_font_size_override("font_size", 13)
 	features.add_theme_color_override("font_color", Color("d6b36d"))
 	hero_box.add_child(features)
-	# O logotipo e o texto já fazem parte da arte de fundo.\n\thero_box.visible = false\n
+
 	login_center = CenterContainer.new()
 	login_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	login_center.size_flags_stretch_ratio = 0.85
