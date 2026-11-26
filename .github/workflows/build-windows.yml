@@ -1,0 +1,44 @@
+name: Gerar LolPRO-ON Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Godot e templates
+        shell: pwsh
+        run: |
+          $version = "4.7.2"
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$version-stable"
+          Invoke-WebRequest "$base/Godot_v$version-stable_win64.exe.zip" -OutFile godot.zip
+          Expand-Archive godot.zip godot
+          $godot = (Get-ChildItem godot -Filter Godot*.exe | Select-Object -First 1).FullName
+          Invoke-WebRequest "$base/Godot_v$version-stable_export_templates.tpz" -OutFile templates.tpz
+          Expand-Archive templates.tpz templates
+          New-Item -ItemType Directory -Force "$env:APPDATA/Godot/export_templates/$version.stable" | Out-Null
+          Copy-Item "templates/templates/*" "$env:APPDATA/Godot/export_templates/$version.stable" -Recurse -Force
+          "$godot" | Out-File godot-path.txt
+          echo "GODOT_EXE=$godot" >> $env:GITHUB_ENV
+
+      - name: Importar projeto
+        run: '& "$env:GODOT_EXE" --headless --editor --path . --import'
+
+      - name: Exportar Windows
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          & "$env:GODOT_EXE" --headless --path . --export-release "Windows Desktop" build/LolPRO-ON.exe
+
+      - name: Disponibilizar pacote Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: LolPRO-ON-Windows
+          path: |
+            build/LolPRO-ON.exe
+            build/LolPRO-ON.pck
+          if-no-files-found: error
