@@ -1,7 +1,7 @@
 extends Control
 var world: Node3D
 var fingers := {}
-var defaults := {"move":Vector2(0.15,0.78),"jump":Vector2(0.92,0.78),"attack":Vector2(0.78,0.78),"run":Vector2(0.78,0.56)}
+var defaults := {"move":Vector2(0.15,0.78),"jump":Vector2(0.92,0.78),"attack":Vector2(0.78,0.78),"run":Vector2(0.78,0.56),"mic":Vector2(0.08,0.43)}
 var positions := {}
 var radii := {}
 var editing := false
@@ -45,7 +45,7 @@ func _ready():
 	toolbar.hide()
 func reset_layout():
 	positions = defaults.duplicate()
-	radii = {"move":45.0,"jump":36.0,"attack":36.0,"run":36.0}
+	radii = {"move":45.0,"jump":36.0,"attack":36.0,"run":36.0,"mic":28.0}
 func center(key: String) -> Vector2:
 	var v := get_viewport_rect().size
 	var r := float(radii[key])
@@ -94,6 +94,7 @@ func _input(event):
 			elif hit == "jump": world.touch_jump = true
 			elif hit == "attack": world.attack()
 			elif hit == "run": world.touch_run = not world.touch_run
+			elif hit == "mic": get_tree().call_group("voice_controls","toggle_mic")
 			get_viewport().set_input_as_handled()
 		elif fingers.has(event.index):
 			var key: String = fingers[event.index][0]
@@ -120,6 +121,17 @@ func _draw():
 		var p := center(key)
 		var r := float(radii[key])
 		draw_circle(p,r,Color(1,1,1,0.48 if editing and selected==key else 0.25))
+		if key == "mic":
+			var voice = get_tree().get_first_node_in_group("voice_controls")
+			var active: bool = is_instance_valid(voice) and voice.enabled
+			var c := Color("#55dd88") if active else Color("#ff6666")
+			var w := maxf(2.0,r*0.08)
+			draw_rect(Rect2(p+Vector2(-r*0.16,-r*0.55),Vector2(r*0.32,r*0.65)),c,true)
+			draw_arc(p+Vector2(0,-r*0.08),r*0.34,0,PI,24,c,w,true)
+			draw_line(p+Vector2(0,r*0.26),p+Vector2(0,r*0.55),c,w,true)
+			draw_line(p+Vector2(-r*0.23,r*0.55),p+Vector2(r*0.23,r*0.55),c,w,true)
+			if not active: draw_line(p+Vector2(-r*0.6,-r*0.6),p+Vector2(r*0.6,r*0.6),c,w,true)
+			continue
 		var caption := str({"move":"Mover","jump":"Pular","attack":"Atacar","run":"Caminhar" if world.touch_run else "Correr"}[key])
 		var font := ThemeDB.fallback_font
 		var fs := int(clampf(r*0.4,12,24))
