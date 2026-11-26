@@ -25,6 +25,10 @@ var stock: Button
 var chat: RichTextLabel
 var coords: Label
 var theme_rpg := Theme.new()
+var pet_status: Label
+var pet_exp: ProgressBar
+var pet_toggle: Button
+var pet_model: Node3D
 var preview_fx: Node3D
 var preview_rank := 9
 var preview_visible := true
@@ -135,6 +139,8 @@ func _ready():
 	build_item_inventory(inv)
 	button(inv,"Trajes / Aura / Pet",func(): toggle("Trajes"))
 	build_appearance_preview()
+	button(inv,"Dragão inicial • Pet",func(): toggle("Pet"))
+	build_pet_panel()
 	pages(window("Especial",Vector2(310,410)),8,5,40)
 	var c := window("Personagem",Vector2(300,350))
 	stats_label = label(c,"Nível 1 • EXP 0 / 100")
@@ -266,6 +272,7 @@ func toggle(n: String):
 	if windows.has(n):
 		windows[n].visible = not windows[n].visible
 func apply_progress(data: Dictionary):
+	update_pet(data.get("pet",{}))
 	var ranks: Dictionary = data.get("ranks",{})
 	for key in upgrade_buttons:
 		var rank := maxi(1,int(ranks.get(key,1)))
@@ -308,6 +315,9 @@ func use_potion():
 		hp = mini(100,hp+20)
 		refresh()
 func _process(_delta):
+	if is_instance_valid(pet_model) and pet_model.visible:
+		var target: Vector3 = world.player.global_position + Vector3(1.2,0.6,1.0)
+		pet_model.global_position = pet_model.global_position.lerp(target,clampf(_delta*5.0,0.0,1.0))
 	if is_instance_valid(preview_fx):
 		preview_time += _delta
 		preview_fx.rotate_y(_delta * 0.8)
@@ -396,3 +406,46 @@ func create_preview_fx():
 		var angle := TAU * float(i)/18.0
 		orb.position = Vector3(cos(angle)*0.85,0.25+float(i%3)*0.35,sin(angle)*0.85)
 		preview_fx.add_child(orb)
+
+func build_pet_panel():
+	var v := window("Pet",Vector2(300,260))
+	label(v,"Dragão inicial • evolução 1–99")
+	pet_status = label(v,"Conecte ao servidor para carregar o pet.")
+	pet_exp = bar(v,0,Color("d9b45d"))
+	pet_toggle = button(v,"Invocar",func():
+		if is_instance_valid(world.net) and world.net.cloud_active:
+			world.net.request_item("pet_toggle"))
+	pet_toggle.disabled = true
+func update_pet(data: Dictionary):
+	if not is_instance_valid(pet_status) or data.is_empty(): return
+	var lv := int(data.get("level",1))
+	var active := bool(data.get("summoned",false))
+	var goal: Array = data.get("goal",[20,20])
+	pet_status.text = "Nível %d / 99 • EXP %d\nMissão: explore X %d, Z %d" % [lv,int(data.get("xp",0)),int(goal[0]),int(goal[1])]
+	if lv >= 99: pet_status.text = "Nível 99 • evolução máxima"
+	pet_exp.max_value = 100+(lv-1)*50
+	pet_exp.value = pet_exp.max_value if lv>=99 else int(data.get("xp",0))
+	pet_toggle.disabled = false
+	pet_toggle.text = "Guardar" if active else "Invocar"
+	if active and not is_instance_valid(pet_model):
+		pet_model = Node3D.new()
+		world.add_child(pet_model)
+		pet_model.global_position = world.player.global_position
+		pet_part(Vector3.ZERO,Vector3(0.32,0.24,0.45),Color("d9a344"))
+		pet_part(Vector3(0,0.20,-0.25),Vector3(0.22,0.22,0.22),Color("f5ca69"))
+		pet_part(Vector3(-0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
+		pet_part(Vector3(0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
+		pet_part(Vector3(0,0,0.38),Vector3(0.09,0.09,0.35),Color("d9a344"))
+	if is_instance_valid(pet_model):
+		pet_model.visible = active
+		pet_model.scale = Vector3.ONE * (1.0+float(lv-1)/100.0)
+func pet_part(pos: Vector3, sz: Vector3, color: Color):
+	var part := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	part.mesh = mesh
+	part.scale = sz*2.0
+	part.position = pos
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	part.material_override = mat
+	pet_model.add_child(part)
