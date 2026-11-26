@@ -24,7 +24,7 @@ var discovery := PacketPeerUDP.new()
 var discovery_left := 0.0
 func _ready():
 	add_child(req)
-	req.timeout = 12
+	req.timeout = 90
 	req.request_completed.connect(done)
 	add_child(update_req)
 	update_req.timeout = 20
@@ -59,9 +59,9 @@ func _ready():
 	for s in ["Brasil • Português", "International • English", "España • Español"]: language.add_item(s)
 	v.add_child(language)
 	endpoint = LineEdit.new()
-	endpoint.text = "http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080"
+	endpoint.text = "https://lolpro-on.onrender.com"
 	settings.load("user://login.cfg")
-	endpoint.text = str(settings.get_value("login","server",endpoint.text))
+	endpoint.text = "https://lolpro-on.onrender.com"
 	user = field(v,"Usuário")
 	user.text = str(settings.get_value("login","username",""))
 	password = field(v,"Senha")
@@ -90,9 +90,9 @@ func _ready():
 	button(v,"Baixar jogo / Download",func(): OS.shell_open("https://lolprogif.github.io/LolPRO-ON/"))
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
+		get_tree().remove_meta("online_token")
 		get_tree().change_scene_to_file("res://World.tscn"))
-	if OS.has_feature("mobile"):
-		find_server()
+	
 func open_register_window():
 	if is_instance_valid(create_window):
 		create_window.popup_centered()
@@ -263,4 +263,5 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		status.text = "Login realizado. Escolha seu personagem."
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
+		get_tree().set_meta("online_token",token)
 		get_tree().change_scene_to_file("res://World.tscn")
