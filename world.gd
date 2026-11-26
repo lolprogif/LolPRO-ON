@@ -8,11 +8,12 @@ var pitch := -0.25
 var distance := 4.2
 var jump_held := false
 var jumping := false
-const JUMP_GRAVITY := 22.0
-const JUMP_SPEED := 2.8
+const JUMP_GRAVITY := 10.0
+const JUMP_SPEED := 2.0
 const JUMP_DURATION := 2.0 * JUMP_SPEED / JUMP_GRAVITY
 var yaw := 0.0
 var net: Node
+var touch_sensitivity := 50.0
 var touch_dir := Vector2.ZERO
 var touch_run := false
 var touch_jump := false
