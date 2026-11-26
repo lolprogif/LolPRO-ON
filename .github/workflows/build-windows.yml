@@ -103,22 +103,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "v$env:APP_VERSION"
-          gh release create $tag LolPRO-ON-Windows.zip --title "LolPRO-ON $env:APP_VERSION" --notes "Atualização automática do LolPRO-ON para Windows." --latest
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar a Release do Windows." }
-          $current = gh api "repos/$env:GITHUB_REPOSITORY/contents/latest.json" | ConvertFrom-Json
-          $manifest = @{
-            app = "LolPRO-ON"
-            version = $env:APP_VERSION
-            windows_url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/LolPRO-ON-Windows.zip"
-            android_url = ""
-            status = "published"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag LolPRO-ON-Windows.zip --clobber
+            gh release edit $tag --title "LolPRO-ON $env:APP_VERSION" --notes "Atualização automática do LolPRO-ON para Windows." --latest
+          } else {
+            gh release create $tag LolPRO-ON-Windows.zip --title "LolPRO-ON $env:APP_VERSION" --notes "Atualização automática do LolPRO-ON para Windows." --latest
           }
-          try {
-            $oldText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($current.content))
-            $oldManifest = $oldText | ConvertFrom-Json
-            if ($oldManifest.android_url) { $manifest.android_url = $oldManifest.android_url }
-          } catch {}
-          $json = $manifest | ConvertTo-Json -Depth 5
-          $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json + "`n"))
-          gh api "repos/$env:GITHUB_REPOSITORY/contents/latest.json" -X PUT -f message="Publish LolPRO-ON $env:APP_VERSION" -f content="$encoded" -f sha="$($current.sha)" -f branch="main"
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao atualizar latest.json." }
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar a Release do Windows." }
+          $assetUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/LolPRO-ON-Windows.zip"
+          $saved = $false
+          for ($attempt = 1; $attempt -le 8; $attempt++) {
+            $current = gh api "repos/$env:GITHUB_REPOSITORY/contents/latest.json" | ConvertFrom-Json
+            $manifest = @{
+              app = "LolPRO-ON"
+              version = $env:APP_VERSION
+              windows_url = $assetUrl
+              android_url = ""
+              status = "published"
+            }
+            try {
+              $oldText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($current.content))
+              $oldManifest = $oldText | ConvertFrom-Json
+              if ($oldManifest.android_url) { $manifest.android_url = $oldManifest.android_url }
+            } catch {}
+            $json = $manifest | ConvertTo-Json -Depth 5
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json + "`n"))
+            gh api "repos/$env:GITHUB_REPOSITORY/contents/latest.json" -X PUT -f message="Publish LolPRO-ON $env:APP_VERSION" -f content="$encoded" -f sha="$($current.sha)" -f branch="main"
+            if ($LASTEXITCODE -eq 0) { $saved = $true; break }
+            Start-Sleep -Seconds 4
+          }
+          if (-not $saved) { throw "Falha ao atualizar latest.json após várias tentativas." }
