@@ -24,7 +24,7 @@ if DATABASE_URL:
     sql=sql.replace('INSERT OR IGNORE INTO ','INSERT INTO ',1)+' ON CONFLICT DO NOTHING'
    elif sql.startswith('INSERT OR REPLACE INTO '):
     table=sql.split()[4]
-    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot')}[table]
+    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot'),'avatar_profiles':('username,slot','avatar')}[table]
     sql=sql.replace('INSERT OR REPLACE INTO ','INSERT INTO ',1)+f' ON CONFLICT ({keys}) DO UPDATE SET {field}=EXCLUDED.{field}'
    return self.conn.execute(sql,params)
   def commit(self): self.conn.commit()
