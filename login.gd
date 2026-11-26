@@ -335,7 +335,7 @@ func show_selection(items: Array, legacy: String):
 		selection.queue_free()
 		login_center.show()
 		status = login_center.find_child("LoginStatus",true,false) as Label
-		if status: status.text = "Entre com sua conta."))
+		if status: status.text = "Entre com sua conta.")
 	status = Label.new()
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(status)
