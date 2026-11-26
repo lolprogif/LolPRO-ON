@@ -11,6 +11,12 @@ var stock: Button
 var chat: RichTextLabel
 var coords: Label
 var theme_rpg := Theme.new()
+var attack_button: Button
+var jump_button: Button
+var layout_cfg := ConfigFile.new()
+var layout_drag: Control
+var layout_scale := 1.0
+var layout_positions := {}
 func style(bg: Color, border: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
@@ -48,16 +54,15 @@ func _ready():
 	for name in ["Poção","Personagem","Inventário","Especial","Habilidades","Emoções","Missões","Amigos","Grupo","Mapa","Loja","Opções"]:
 		var n: String = name
 		button(h,n,func(): use_potion() if n == "Poção" else toggle(n))
-	var attack_button := Button.new()
-	attack_button.text = "Atacar" if OS.has_feature("mobile") else "Atacar (Mouse esq.)"
-	attack_button.focus_mode = Control.FOCUS_NONE
-	root.add_child(attack_button)
-	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	attack_button.offset_left = -240
-	attack_button.offset_right = -140
-	attack_button.offset_top = -220
-	attack_button.offset_bottom = -170
-	attack_button.pressed.connect(func(): world.attack())
+	_load_layout()
+	attack_button = _create_control_button("Atacar", "attack", Vector2(0.84,0.70))
+	attack_button.pressed.connect(func():
+		if not world.control_edit_mode: world.attack())
+	jump_button = _create_control_button("Pular", "jump", Vector2(0.84,0.81))
+	jump_button.pressed.connect(func():
+		if not world.control_edit_mode:
+			world.touch_jump = true
+			get_tree().create_timer(0.18).timeout.connect(func(): world.touch_jump = false))
 	var map := panel_at(Vector2.ZERO,Vector2(170,100))
 	map.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	map.offset_left = -185
@@ -144,6 +149,10 @@ func _ready():
 		world.touch_sensitivity = value
 		settings.set_value("controls","sensitivity",value)
 		settings.save("user://settings.cfg"))
+	button(menu,"Editar posição dos controles",func(): _toggle_layout_edit())
+	button(menu,"Aumentar tamanho",func(): _resize_layout(0.1))
+	button(menu,"Diminuir tamanho",func(): _resize_layout(-0.1))
+	button(menu,"Restaurar padrão",func(): _reset_layout())
 	button(menu,"Ajuda / controles",func(): toggle("Ajuda"))
 	button(menu,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(menu,"Teleportador",func(): toggle("Teleportador"))
@@ -234,3 +243,91 @@ func _unhandled_key_input(event):
 	if event.pressed and not event.echo:
 		if event.keycode == KEY_I: toggle("Inventário")
 		if event.keycode == KEY_ESCAPE: toggle("Opções")
+
+
+func _layout_profile() -> String:
+	return "mobile" if OS.has_feature("mobile") else "pc"
+
+func _load_layout():
+	layout_cfg.load("user://controls.cfg")
+	var profile := _layout_profile()
+	layout_scale = clampf(float(layout_cfg.get_value(profile,"scale",1.0)),0.7,1.5)
+	layout_positions["attack"] = layout_cfg.get_value(profile,"attack",Vector2(0.84,0.70))
+	layout_positions["jump"] = layout_cfg.get_value(profile,"jump",Vector2(0.84,0.81))
+	world.control_scale = layout_scale
+
+func _create_control_button(caption: String, key: String, fallback: Vector2) -> Button:
+	var b := Button.new()
+	b.text = caption
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(100,50) * layout_scale
+	b.size = b.custom_minimum_size
+	root.add_child(b)
+	b.position = layout_positions.get(key,fallback) * get_viewport().get_visible_rect().size
+	b.gui_input.connect(func(event): _layout_button_input(event,b,key))
+	return b
+
+func _layout_button_input(event: InputEvent, target: Control, key: String):
+	if not world.control_edit_mode: return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed: layout_drag = target
+		elif layout_drag == target:
+			layout_drag = null
+			_save_layout()
+	elif event is InputEventMouseMotion and layout_drag == target:
+		target.position += event.relative
+		_clamp_layout_button(target)
+	elif event is InputEventScreenTouch:
+		if event.pressed: layout_drag = target
+		elif layout_drag == target:
+			layout_drag = null
+			_save_layout()
+	elif event is InputEventScreenDrag and layout_drag == target:
+		target.position += event.relative
+		_clamp_layout_button(target)
+	if layout_drag == target:
+		var size := get_viewport().get_visible_rect().size
+		layout_positions[key] = Vector2(target.position.x/maxf(1.0,size.x),target.position.y/maxf(1.0,size.y))
+
+func _clamp_layout_button(target: Control):
+	var size := get_viewport().get_visible_rect().size
+	target.position.x = clampf(target.position.x,0.0,maxf(0.0,size.x-target.size.x))
+	target.position.y = clampf(target.position.y,0.0,maxf(0.0,size.y-target.size.y))
+
+func _toggle_layout_edit():
+	world.control_edit_mode = not world.control_edit_mode
+	attack_button.text = "Mover Atacar" if world.control_edit_mode else "Atacar"
+	jump_button.text = "Mover Pular" if world.control_edit_mode else "Pular"
+	attack_button.modulate = Color(1.0,0.82,0.5) if world.control_edit_mode else Color.WHITE
+	jump_button.modulate = Color(1.0,0.82,0.5) if world.control_edit_mode else Color.WHITE
+	if not world.control_edit_mode: _save_layout()
+
+func _resize_layout(amount: float):
+	layout_scale = clampf(layout_scale+amount,0.7,1.5)
+	world.control_scale = layout_scale
+	for b in [attack_button,jump_button]:
+		b.custom_minimum_size = Vector2(100,50)*layout_scale
+		b.size = b.custom_minimum_size
+		_clamp_layout_button(b)
+	_save_layout()
+
+func _reset_layout():
+	layout_scale = 1.0
+	world.control_scale = 1.0
+	layout_positions["attack"] = Vector2(0.84,0.70)
+	layout_positions["jump"] = Vector2(0.84,0.81)
+	for pair in [[attack_button,"attack"],[jump_button,"jump"]]:
+		var b: Control = pair[0]
+		b.position = layout_positions[pair[1]]*get_viewport().get_visible_rect().size
+		b.custom_minimum_size = Vector2(100,50)
+		b.size = b.custom_minimum_size
+	if world.has_node("Network/TouchControls"):
+		world.get_node("Network/TouchControls").reset_layout()
+	_save_layout()
+
+func _save_layout():
+	var profile := _layout_profile()
+	layout_cfg.set_value(profile,"scale",layout_scale)
+	layout_cfg.set_value(profile,"attack",layout_positions.get("attack",Vector2(0.84,0.70)))
+	layout_cfg.set_value(profile,"jump",layout_positions.get("jump",Vector2(0.84,0.81)))
+	layout_cfg.save("user://controls.cfg")
