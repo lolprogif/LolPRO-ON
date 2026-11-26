@@ -17,6 +17,8 @@ var touch_sensitivity := 50.0
 var touch_dir := Vector2.ZERO
 var touch_run := false
 var touch_jump := false
+var control_edit_mode := false
+var control_scale := 1.0
 var attack_cooldown := 0.0
 func _ready():
 	var env := WorldEnvironment.new()
