@@ -1,6 +1,7 @@
 config_version=5
 [application]
-config/name="RPG V0.8"
+config/name="LolPRO-ON"
+config/version="0.9"
 run/main_scene="res://Login.tscn"
 [rendering]
 renderer/rendering_method="gl_compatibility"
@@ -10,4 +11,5 @@ textures/vram_compression/import_etc2_astc=true
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 window/handheld/orientation=0
