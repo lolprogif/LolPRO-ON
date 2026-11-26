@@ -18,6 +18,8 @@ with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 1, PRIMARY KEY(username,slot,kind))')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS class_profiles (username TEXT, slot INTEGER, class TEXT, gender TEXT, PRIMARY KEY(username,slot))')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -36,7 +38,7 @@ class Handler(BaseHTTPRequestHandler):
     elif self.path=='/login':
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
-     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name} for i,name in db.execute('SELECT slot,name FROM characters WHERE username=? ORDER BY slot',(u,))]})
+     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name,'class':cl,'gender':gender} for i,name,cl,gender in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot WHERE c.username=? ORDER BY c.slot",(u,))]})
     elif self.path=='/voice':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row: raise ValueError('Invalid session')
@@ -88,6 +90,8 @@ class Handler(BaseHTTPRequestHandler):
       gear={k:0 for k in kinds}
       gear.update(dict(db.execute('SELECT kind,equipped FROM gear WHERE username=? AND slot=?',(row[0],slot))))
       me['gear']=gear
+      profile=db.execute('SELECT class,gender FROM class_profiles WHERE username=? AND slot=?',(row[0],slot)).fetchone() or ('Guerreiro','Masculino')
+      me['class'],me['gender']=profile
       ranks=dict(db.execute('SELECT kind,rank FROM upgrades WHERE username=? AND slot=?',(row[0],slot)))
       me['ranks']=ranks
       item=str(d.get('item',''))[:80]
@@ -137,6 +141,7 @@ class Handler(BaseHTTPRequestHandler):
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
+      own['class'],own['gender']=profile
       own['gear']=gear
       own['ranks']=ranks
       own['item_seq']=me.get('item_seq','')
@@ -150,7 +155,10 @@ class Handler(BaseHTTPRequestHandler):
      if type(slot) is not int or not 0<=slot<4: raise ValueError('Invalid slot')
      existing=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(row[0],slot)).fetchone()
      if existing and existing[0]!=name: raise ValueError('Slot already occupied')
+     cl=d.get('class','Guerreiro'); gender=d.get('gender','Masculino')
+     if cl not in ('Guerreiro','Shura','Ninja','Xamã') or gender not in ('Masculino','Feminino'): raise ValueError('Invalid class or gender')
      db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
+     db.execute('INSERT OR IGNORE INTO class_profiles VALUES(?,?,?,?)',(row[0],slot,cl,gender))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
     else: raise ValueError('Unknown endpoint')
