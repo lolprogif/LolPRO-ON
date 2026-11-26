@@ -9,6 +9,7 @@ var busy := false
 var elapsed := 0.0
 var label_status: Label
 var mic_button: Button
+var quick_mic: Button
 var muted := {}
 var speakers := {}
 var volume := 0.7
@@ -54,6 +55,13 @@ func _ready():
 	button.position = Vector2(12,165)
 	layer.add_child(button)
 	button.pressed.connect(func(): hud.toggle("Voz"))
+	quick_mic = Button.new()
+	quick_mic.position = Vector2(12,205)
+	quick_mic.custom_minimum_size = Vector2(52,52)
+	quick_mic.focus_mode = Control.FOCUS_NONE
+	layer.add_child(quick_mic)
+	quick_mic.pressed.connect(toggle_mic)
+	refresh_mic_icon()
 	AudioServer.add_bus()
 	bus_index = AudioServer.bus_count-1
 	AudioServer.set_bus_name(bus_index,"VoiceCapture")
@@ -62,6 +70,12 @@ func _ready():
 	mic.bus = "VoiceCapture"
 	mic.stream = AudioStreamMicrophone.new()
 	add_child(mic)
+func refresh_mic_icon():
+	if not is_instance_valid(quick_mic): return
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="none" stroke="%s" stroke-width="2.5" stroke-linecap="round"><rect x="12" y="3" width="8" height="17" rx="4"/><path d="M8 15v2a8 8 0 0 0 16 0v-2M16 25v4M11 29h10"/>%s</g></svg>' % ["#55dd88" if enabled else "#ff6666", "" if enabled else '<path d="M4 4l24 24"/>']
+	var img := Image.new()
+	if img.load_svg_from_string(svg) == OK: quick_mic.icon = ImageTexture.create_from_image(img)
+	quick_mic.tooltip_text = "Desligar microfone" if enabled else "Ligar microfone"
 func toggle_mic():
 	if enabled:
 		stop_mic()
@@ -76,11 +90,13 @@ func toggle_mic():
 	capture.clear_buffer()
 	phase = 0.0
 	enabled = true
+	refresh_mic_icon()
 	mic.play()
 	mic_button.text = "Desligar microfone"
 	label_status.text = "Microfone ligado • alcance 20 m"
 func stop_mic():
 	enabled = false
+	refresh_mic_icon()
 	mic.stop()
 	capture.clear_buffer()
 	mic_button.text = "Ligar microfone"
