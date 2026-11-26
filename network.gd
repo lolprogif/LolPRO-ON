@@ -178,6 +178,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		var hud = world.get_children().filter(func(n): return n is CanvasLayer)[0]
 		hud.hp = health
 		hud.potions = int(own.get("potions",5))
+		world.show_gear(world.player,own)
 		hud.apply_progress(own)
 		if str(own.get("item_seq","")) == item_seq: item_seq = ""; item_action = ""
 		hud.refresh()
@@ -194,6 +195,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP")
 		if remotes.has(id):
 			var node: Node3D = remotes[id].node
+			world.show_gear(node,item)
 			for child in node.get_children():
 				if child is Label3D: child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
 			var seq := str(item.get("attack_seq",""))
