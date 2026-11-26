@@ -201,6 +201,7 @@ func _ready():
 	button(menu,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(menu,"Teleportador",func(): toggle("Teleportador"))
 	label(menu,"Canal / conta / personagem: offline")
+	button(menu,"Desconectar • voltar ao login",disconnect_to_login)
 	button(menu,"Sair do jogo",func(): get_tree().quit())
 	label(window("Ajuda",Vector2(320,180)),"WASD: mover • Shift: correr\nEspaço: pular • Botão direito: câmera\nScroll: zoom • I: inventário • Esc: opções")
 	var tp := window("Teleportador",Vector2(300,200))
@@ -476,3 +477,9 @@ func pet_part(pos: Vector3, sz: Vector3, color: Color):
 	mat.albedo_color = color
 	part.material_override = mat
 	pet_model.add_child(part)
+
+func disconnect_to_login():
+	if is_instance_valid(world.net): world.net.leave()
+	for key in ["online_token","online_endpoint","hud_profile"]:
+		if get_tree().has_meta(key): get_tree().remove_meta(key)
+	get_tree().change_scene_to_file("res://Login.tscn")
