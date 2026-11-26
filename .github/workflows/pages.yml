@@ -41,6 +41,8 @@ jobs:
         with:
           name: lolpro-pages-dist
           path: .
+      - name: Aguardar finalizacao do artefato Pages
+        run: sleep 15
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
