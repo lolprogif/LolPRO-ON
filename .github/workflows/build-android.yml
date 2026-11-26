@@ -38,19 +38,19 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates
           mv templates ~/.local/share/godot/export_templates/$V.stable
 
-      - name: Configurar Android
+      - name: Configurar Android para APK de teste
         run: |
           mkdir -p ~/.android ~/.config/godot
           keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
           printf '[gd_resource type="EditorSettings" format=3]\\n\\n[resource]\\nexport/android/android_sdk_path = "%s"\\nexport/android/java_sdk_path = "%s"\\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
           python3 - <<'PY'
-          import os
           p = "export_presets.cfg"
           s = open(p, encoding="utf-8").read()
           marker = "[preset.0.options]\\n"
-          values = 'keystore/release="{}"\\nkeystore/release_user="{}"\\nkeystore/release_password="{}"\\n'.format(os.path.expanduser("~/.android/lolpro-release.keystore"), os.environ["ANDROID_KEY_ALIAS"], os.environ["ANDROID_KEYSTORE_PASSWORD"])
-          s = s.replace(marker, marker + values, 1)
-          open(p, "w", encoding="utf-8").write(s)
+          values = 'keystore/debug="/home/runner/.android/debug.keystore"\\nkeystore/debug_user="androiddebugkey"\\nkeystore/debug_password="android"\\n'
+          if marker not in s:
+              raise SystemExit("Preset Android não encontrado")
+          open(p, "w", encoding="utf-8").write(s.replace(marker, marker + values, 1))
           PY
 
       - name: Importar jogo
@@ -59,7 +59,7 @@ jobs:
       - name: Gerar APK
         run: |
           mkdir -p build
-          godot --headless --export-release "Android" build/LolPro.apk
+          godot --headless --export-debug "Android" build/LolPro.apk
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
