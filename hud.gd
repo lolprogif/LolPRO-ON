@@ -48,6 +48,16 @@ func _ready():
 	for name in ["Poção","Personagem","Inventário","Especial","Habilidades","Emoções","Missões","Amigos","Grupo","Mapa","Loja","Opções"]:
 		var n: String = name
 		button(h,n,func(): use_potion() if n == "Poção" else toggle(n))
+	var attack_button := Button.new()
+	attack_button.text = "Atacar" if OS.has_feature("mobile") else "Atacar (Ctrl)"
+	attack_button.focus_mode = Control.FOCUS_NONE
+	root.add_child(attack_button)
+	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	attack_button.offset_left = -240
+	attack_button.offset_right = -140
+	attack_button.offset_top = -220
+	attack_button.offset_bottom = -170
+	attack_button.pressed.connect(func(): world.attack())
 	var map := panel_at(Vector2.ZERO,Vector2(170,100))
 	map.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	map.offset_left = -185
