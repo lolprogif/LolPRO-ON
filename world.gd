@@ -249,3 +249,42 @@ func clear_punch(sk: Skeleton3D, upper: int, fore: int):
 	if not is_instance_valid(sk): return
 	sk.set_bone_global_pose_override(upper,Transform3D.IDENTITY,0.0,false)
 	sk.set_bone_global_pose_override(fore,Transform3D.IDENTITY,0.0,false)
+
+func show_gear(actor: Node3D, data: Dictionary):
+	var flags: Dictionary = data.get("gear",{}).duplicate()
+	flags["weapon"] = int(data.get("weapon",0))
+	flags["armor"] = int(data.get("armor",0))
+	var signature := JSON.stringify(flags)
+	if actor.get_meta("gear_signature","") == signature: return
+	actor.set_meta("gear_signature",signature)
+	var old := actor.get_node_or_null("VisibleGear")
+	if old: actor.remove_child(old); old.queue_free()
+	var holder := Node3D.new()
+	holder.name = "VisibleGear"
+	actor.add_child(holder)
+	var parts := {
+		"weapon":[Vector3(0.43,0.85,0.12),Vector3(0.07,0.85,0.10)],
+		"armor":[Vector3(0,1.22,0),Vector3(0.52,0.42,0.28)],
+		"helmet":[Vector3(0,1.72,0),Vector3(0.34,0.22,0.34)],
+		"boots":[Vector3(0.17,0.13,0),Vector3(0.18,0.24,0.28)],
+		"gloves":[Vector3(0.43,0.85,0),Vector3(0.14,0.18,0.14)],
+		"necklace":[Vector3(0,1.43,0.17),Vector3(0.16,0.05,0.05)],
+		"ring":[Vector3(0.43,0.77,0.07),Vector3(0.06,0.04,0.06)],
+		"bracelet":[Vector3(-0.43,0.94,0),Vector3(0.15,0.06,0.15)],
+		"shield":[Vector3(-0.48,1.0,0.12),Vector3(0.35,0.55,0.09)]}
+	for key in parts:
+		if not int(flags.get(key,0)): continue
+		var mesh := MeshInstance3D.new()
+		var shape := BoxMesh.new()
+		shape.size = parts[key][1]
+		mesh.mesh = shape
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color("c9a45a") if key in ["ring","necklace","bracelet"] else Color("8b9ba9")
+		mat.metallic = 0.65
+		mesh.material_override = mat
+		holder.add_child(mesh)
+		mesh.position = parts[key][0]
+		if key in ["boots","gloves"]:
+			var other := mesh.duplicate() as MeshInstance3D
+			holder.add_child(other)
+			other.position.x *= -1
