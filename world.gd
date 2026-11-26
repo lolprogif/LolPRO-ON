@@ -17,6 +17,7 @@ var touch_sensitivity := 50.0
 var touch_dir := Vector2.ZERO
 var touch_run := false
 var touch_jump := false
+var attack_cooldown := 0.0
 func _ready():
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -110,6 +111,8 @@ func animate(state):
 				ap.advance(0.0)
 				break
 func _unhandled_input(event):
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_CTRL:
+		attack()
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * 0.003
 		pitch = clamp(pitch-event.relative.y*0.003,-1.2,0.15)
@@ -122,6 +125,7 @@ func _unhandled_input(event):
 	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 func _physics_process(delta):
+	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	if get_viewport().gui_get_focus_owner() is LineEdit:
 		return
 	var direction := Vector3(float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A)),0,float(Input.is_physical_key_pressed(KEY_S))-float(Input.is_physical_key_pressed(KEY_W)))
@@ -169,3 +173,26 @@ func remove_horizontal_motion(ap: AnimationPlayer, clip: String, lock_vertical: 
 			if lock_vertical:
 				value.y = initial.y
 			anim.track_set_key_value(track, key, value)
+
+func attack():
+	if attack_cooldown > 0.0 or get_viewport().gui_get_focus_owner() is LineEdit:
+		return
+	attack_cooldown = 0.6
+	var effect := MeshInstance3D.new()
+	var slash := BoxMesh.new()
+	slash.size = Vector3(1.6,0.07,0.15)
+	effect.mesh = slash
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(1.0,0.8,0.25)
+	effect.material_override = material
+	player.add_child(effect)
+	effect.position = Vector3(0,1.1,1.0)
+	var tween := create_tween()
+	tween.tween_property(effect,"rotation:y",1.8,0.18).from(-1.8)
+	tween.tween_callback(effect.queue_free)
+	for target in get_tree().get_nodes_in_group("attackable"):
+		if target is Node3D and target.has_method("take_damage"):
+			var offset: Vector3 = target.global_position - player.global_position
+			if offset.length() <= 2.0 and offset.normalized().dot(player.global_transform.basis.z.normalized()) > 0.3:
+				target.take_damage(10)
