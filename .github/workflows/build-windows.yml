@@ -41,6 +41,7 @@ jobs:
           Copy-Item INICIAR_CONTAS.bat build/INICIAR_CONTAS.bat
           @'
           @echo off
+          setlocal
           cd /d "%~dp0"
           where py >nul 2>nul
           if errorlevel 1 (
@@ -48,39 +49,34 @@ jobs:
             pause
             exit /b 1
           )
-          start "Servidor de contas LolPRO" cmd /k "cd /d ""%~dp0"" && py -3 account_server.py"
+          powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; if(-not $p){Start-Process -FilePath 'py' -ArgumentList '-3','account_server.py' -WorkingDirectory '%~dp0' -WindowStyle Hidden}"
           timeout /t 2 /nobreak >nul
           start "" "%~dp0LolPRO-ON.exe"
+          exit /b 0
           '@ | Set-Content -Encoding ASCII build/INICIAR_LOLPRO.bat
           @'
           LolPRO-ON V0.9 - pacote Windows de teste
 
-          ARQUIVOS
-          - LolPRO-ON.exe e LolPRO-ON.pck: jogo para Windows.
-          - account_server.py: servidor local de cadastro/login.
-          - INICIAR_CONTAS.bat: inicia somente o servidor de contas.
-          - INICIAR_LOLPRO.bat: inicia o servidor de contas e abre o jogo.
-          - Python 3 precisa estar instalado no PC anfitriao.
+          INICIAR_LOLPRO.bat inicia o servidor de contas oculto em segundo plano
+          (se a porta 8080 ainda nao estiver em uso) e abre o jogo.
+          INICIAR_CONTAS.bat inicia o servidor manualmente para diagnostico.
+          Requer Python 3 instalado no PC.
 
-          COMO USAR PC + ANDROID NA MESMA REDE
-          1. Conecte PC e telefone ao mesmo Wi-Fi/rede local.
-          2. No PC, execute INICIAR_LOLPRO.bat e permita acesso na rede privada
-             quando o Firewall do Windows perguntar.
-          3. No telefone, abra LolPRO-ON e toque em Localizar servidor.
-             Se nao localizar, informe o IPv4 do PC no campo Servidor:
-             http://IP-DO-PC:8080
-          4. Para multiplayer, no PC use Rede > Hospedar. No telefone use
-             Rede > Conectar com o IPv4 do PC.
-          5. As portas usadas na rede privada sao TCP 8080 (contas),
-             UDP 8081 (descoberta) e UDP 7000 (jogo).
+          PC + Android:
+          1. PC e telefone na mesma rede Wi-Fi/LAN.
+          2. No PC, execute INICIAR_LOLPRO.bat.
+          3. No telefone, toque Localizar servidor; se necessario informe
+             http://IP-DO-PC:8080 no campo Servidor.
+          4. Para multiplayer, no PC use Rede > Hospedar; no telefone use
+             Rede > Conectar com o IP do PC.
+          Portas da rede local: TCP 8080 (contas), UDP 8081 (descoberta),
+          UDP 7000 (jogo).
 
-          IMPORTANTE
-          - Este e um pacote experimental para rede local, nao para internet publica.
-          - Contas ficam no arquivo accounts.sqlite3, criado ao iniciar o servidor.
-          - Cadastro/login e salvamento do nome do personagem nao sincronizam
-            inventario, progresso ou estado do mundo.
-          - Mantenha o servidor aberto enquanto o telefone estiver conectado.
-          - Se o Windows bloquear, permita Python/LolPRO somente em redes privadas.
+          ATENCAO:
+          - O servidor de contas usa HTTP sem criptografia: somente rede privada.
+          - accounts.sqlite3 e criado automaticamente na primeira inicializacao.
+          - Conta/personagem nao sincroniza inventario, progresso ou mundo.
+          - O servidor precisa permanecer ativo enquanto o telefone usar a conta.
           '@ | Set-Content -Encoding UTF8 build/LEIA-ME-WINDOWS.txt
 
       - name: Disponibilizar pacote Windows completo
