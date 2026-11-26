@@ -306,7 +306,7 @@ func show_selection(items: Array, legacy: String):
 	v.add_child(slots)
 	character = field(v,"Nome do novo personagem")
 	var classes := OptionButton.new()
-	for cl in ["Guerreiro","Shura","Ninja","Xamã"]: classes.add_item(cl)
+	for cl in ["Guerreiro","Ninja"]: classes.add_item(cl)
 	v.add_child(classes)
 	var genders := OptionButton.new()
 	genders.add_item("Masculino")
@@ -320,7 +320,7 @@ func show_selection(items: Array, legacy: String):
 		character.text = str(slot_names.get(index,""))
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
-		classes.select(maxi(0,["Guerreiro","Shura","Ninja","Xamã"].find(profile.get("class","Guerreiro"))))
+		classes.select(maxi(0,["Guerreiro","Ninja"].find(profile.get("class","Guerreiro"))))
 		genders.select(1 if profile.get("gender","Masculino") == "Feminino" else 0)
 		classes.disabled = slot_names.has(index)
 		genders.disabled = slot_names.has(index)
@@ -446,7 +446,7 @@ func play_preview(state: String):
 	preview_actor = scene.instantiate() as Node3D
 	preview_stage.add_child(preview_actor)
 	preview_actor.scale = Vector3(0.86,0.94,0.86) if preview_gender == 1 else Vector3.ONE
-	var palette := [Color("a5a9b5"),Color("63263e"),Color("263a49"),Color("b99a58")]
+	var palette := [Color("a5a9b5"),Color("263a49")]
 	for mesh_node in preview_actor.find_children("*","MeshInstance3D",true,false):
 		var mesh_instance := mesh_node as MeshInstance3D
 		var material := StandardMaterial3D.new()
