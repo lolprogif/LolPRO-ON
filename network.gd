@@ -16,6 +16,15 @@ var item_action := ""
 var generation := 0
 var health := 100
 var remote_attacks := {}
+var skill_seq := ""
+var skill_index := -1
+var skill_events := {}
+var skill_buttons: Array[Button] = []
+var mana_label: Label
+var skill_level := 1
+var skill_class := "Guerreiro"
+var skill_mana := 100
+var skill_cooldowns := [0,0,0,0,0,0]
 func _ready():
 	add_child(cloud_request)
 	cloud_request.timeout = 90
@@ -43,6 +52,18 @@ func _ready():
 	b.position = Vector2(12,125)
 	layer.add_child(b)
 	b.pressed.connect(func(): hud.toggle("Rede"))
+	var bar := HBoxContainer.new()
+	layer.add_child(bar)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	bar.position = Vector2(get_viewport().get_visible_rect().size.x * 0.25, get_viewport().get_visible_rect().size.y - 90)
+	mana_label = Label.new()
+	bar.add_child(mana_label)
+	for i in range(6):
+		var skill_button := Button.new()
+		skill_button.text = str(i+1)
+		bar.add_child(skill_button)
+		skill_buttons.append(skill_button)
+		skill_button.pressed.connect(request_skill.bind(i))
 	var voice = preload("res://voice.gd").new()
 	voice.net = self
 	add_child(voice)
@@ -112,7 +133,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action}
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -175,6 +196,18 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 	var own: Dictionary = data.get("self",{})
 	if not own.is_empty():
 		health = int(own.get("hp",100))
+		skill_level = int(own.get("level",1))
+		skill_class = str(own.get("class","Guerreiro"))
+		skill_mana = int(own.get("mana",100))
+		skill_cooldowns = own.get("cooldowns",[0,0,0,0,0,0])
+		mana_label.text = "MP %d/100" % skill_mana
+		var catalog: Array = preload("res://class_skills.gd").skills_for(skill_class)
+		for i in range(6):
+			skill_buttons[i].disabled = skill_level < [5,8,10,12,15,20][i] or float(skill_cooldowns[i]) > 0 or skill_mana < 10+i*3
+			skill_buttons[i].tooltip_text = str(catalog[i][0]) if catalog.size()>i else ""
+			skill_buttons[i].text = str(i+1) if float(skill_cooldowns[i]) <= 0 else str(ceili(float(skill_cooldowns[i])))
+		if own.get("skill_ack","") == skill_seq: skill_seq = ""
+		show_skill_event("self",world.player,own,skill_class)
 		var hud = world.get_children().filter(func(n): return n is CanvasLayer)[0]
 		hud.hp = health
 		hud.potions = int(own.get("potions",5))
@@ -196,6 +229,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		if remotes.has(id):
 			var node: Node3D = remotes[id].node
 			world.show_gear(node,item)
+			show_skill_event(id,node,item,str(item.get("class_name","Guerreiro")))
 			for child in node.get_children():
 				if child is Label3D: child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
 			var seq := str(item.get("attack_seq",""))
@@ -214,3 +248,34 @@ func request_item(cmd: String):
 	if cloud_active and item_seq.is_empty():
 		item_action = cmd
 		item_seq = str(Time.get_ticks_usec())+"-"+str(randi())
+
+func request_skill(index: int):
+	if cloud_active and health > 0 and skill_seq.is_empty() and not skill_buttons[index].disabled:
+		skill_index = index
+		skill_seq = str(Time.get_ticks_usec())+"-"+str(randi())
+
+func _unhandled_key_input(event: InputEvent):
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode >= KEY_1 and event.keycode <= KEY_6:
+		request_skill(event.keycode-KEY_1)
+
+func show_skill_event(id: String, actor: Node3D, data: Dictionary, cl: String):
+	var seq := str(data.get("skill_event",""))
+	if seq.is_empty() or skill_events.get(id,"") == seq: return
+	skill_events[id] = seq
+	world.attack_effect(actor)
+	var effect := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.8
+	ring.outer_radius = 1.0
+	effect.mesh = ring
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = {"Guerreiro":Color.ORANGE_RED,"Shura":Color.MEDIUM_PURPLE,"Ninja":Color.SEA_GREEN,"Xamã":Color.GOLD}.get(cl,Color.WHITE)
+	mat.emission_enabled = true
+	mat.emission = mat.albedo_color
+	effect.material_override = mat
+	actor.add_child(effect)
+	effect.position.y = 0.3
+	var tween := create_tween()
+	tween.tween_property(effect,"scale",Vector3(3,1,3),0.55)
+	tween.tween_callback(effect.queue_free)
