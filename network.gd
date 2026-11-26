@@ -11,6 +11,8 @@ var cloud_request := HTTPRequest.new()
 var cloud_active := false
 var attack_seq := ""
 var potion_seq := ""
+var item_seq := ""
+var item_action := ""
 var generation := 0
 var health := 100
 var remote_attacks := {}
@@ -110,7 +112,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation}
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -176,6 +178,8 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		var hud = world.get_children().filter(func(n): return n is CanvasLayer)[0]
 		hud.hp = health
 		hud.potions = int(own.get("potions",5))
+		hud.apply_progress(own)
+		if str(own.get("item_seq","")) == item_seq: item_seq = ""; item_action = ""
 		hud.refresh()
 		var next_generation := int(own.get("generation",0))
 		if next_generation != generation:
@@ -203,3 +207,8 @@ func request_attack():
 	if cloud_active and health > 0: attack_seq = str(Time.get_ticks_usec())+"-"+str(randi())
 func request_potion():
 	if cloud_active: potion_seq = str(Time.get_ticks_usec())+"-"+str(randi())
+
+func request_item(cmd: String):
+	if cloud_active and item_seq.is_empty():
+		item_action = cmd
+		item_seq = str(Time.get_ticks_usec())+"-"+str(randi())
