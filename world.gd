@@ -72,22 +72,24 @@ func _ready():
 	col.position.y = 0.9
 	player.add_child(col)
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
-	var avatar_file := {"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"Character.fbx")
-	var avatar_scene = load("res://assets/"+avatar_file)
-	if avatar_scene is PackedScene:
-		var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
-		player.add_child(avatar_model)
-		models["Avatar"] = avatar_model
-		models["Idle"] = avatar_model
-	else:
-		push_error("Modelo não importado: "+avatar_file)
+	if avatar_id == "whiteclown":
+		# Mantém o conjunto de animações original do personagem masculino.
 		for state in ["Idle","Walking","Running","Jumping"]:
-			var fallback = load("res://assets/"+state+".fbx")
-			if fallback is PackedScene:
-				var model = fallback.instantiate()
+			var scene = load("res://assets/"+state+".fbx")
+			if scene is PackedScene:
+				var model = scene.instantiate()
 				player.add_child(model)
 				model.hide()
 				models[state] = model
+	else:
+		var avatar_file := {"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx")
+		var avatar_scene = load("res://assets/"+avatar_file)
+		if avatar_scene is PackedScene:
+			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
+			player.add_child(avatar_model)
+			models["Avatar"] = avatar_model
+		else:
+			push_error("Modelo não importado: "+avatar_file)
 	if models.is_empty():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
