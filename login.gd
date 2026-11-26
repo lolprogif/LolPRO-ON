@@ -58,13 +58,10 @@ func _ready():
 	language = OptionButton.new()
 	for s in ["Brasil • Português", "International • English", "España • Español"]: language.add_item(s)
 	v.add_child(language)
-	endpoint = field(v,"Servidor / Server","http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080")
+	endpoint = LineEdit.new()
+	endpoint.text = "http://127.0.0.1:8080" if not OS.has_feature("mobile") else "http://192.168.1.100:8080"
 	settings.load("user://login.cfg")
 	endpoint.text = str(settings.get_value("login","server",endpoint.text))
-	button(v,"Localizar servidor",find_server)
-	var channel := Label.new()
-	channel.text = "Servidor de teste / Test server • CH1"
-	v.add_child(channel)
 	user = field(v,"Usuário")
 	user.text = str(settings.get_value("login","username",""))
 	password = field(v,"Senha")
