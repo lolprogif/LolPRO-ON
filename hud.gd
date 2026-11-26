@@ -53,8 +53,8 @@ func _ready():
 	attack_button.focus_mode = Control.FOCUS_NONE
 	root.add_child(attack_button)
 	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	attack_button.offset_left = -240
-	attack_button.offset_right = -140
+	attack_button.offset_left = -300
+	attack_button.offset_right = -200
 	attack_button.offset_top = -220
 	attack_button.offset_bottom = -170
 	attack_button.pressed.connect(func(): world.attack())
@@ -223,6 +223,9 @@ func refresh():
 	stock.text = "Poção x%d" % potions
 	hp_bar.value = hp
 func use_potion():
+	if is_instance_valid(world.net) and world.net.cloud_active:
+		world.net.request_potion()
+		return
 	if potions > 0 and hp < 100:
 		potions -= 1
 		hp = mini(100,hp+20)
