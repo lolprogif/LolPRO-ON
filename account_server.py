@@ -1,5 +1,7 @@
-import json, sqlite3, hashlib, secrets, hmac, os, re, math, threading, time
+import base64, binascii, json, sqlite3, hashlib, secrets, hmac, os, re, math, threading, time
 players = {}
+voice_queues = {}
+voice_last = {}
 world_lock = threading.Lock()
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 DB=os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
@@ -14,7 +16,7 @@ class Handler(BaseHTTPRequestHandler):
   import time
   try:
    n=int(self.headers.get('Content-Length','0'))
-   if not 0<n<=8192: raise ValueError('Invalid request')
+   if not 0<n<=(24000 if self.path=='/voice' else 8192): raise ValueError('Invalid request')
    d=json.loads(self.rfile.read(n)); u=str(d.get('username','')).strip().lower(); p=str(d.get('password',''))
    with sqlite3.connect(DB) as db:
     if self.path=='/register':
@@ -25,6 +27,32 @@ class Handler(BaseHTTPRequestHandler):
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
      token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2]})
+    elif self.path=='/voice':
+     row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
+     if not row: raise ValueError('Invalid session')
+     uid=row[0]; now=time.monotonic()
+     audio=d.get('audio','')
+     if not isinstance(audio,str) or len(audio)>18000: raise ValueError('Invalid audio')
+     try: raw=base64.b64decode(audio,validate=True)
+     except binascii.Error: raise ValueError('Invalid audio')
+     if len(raw)>12800 or len(raw)%2: raise ValueError('Invalid audio')
+     with world_lock:
+      for key in list(voice_queues):
+       if key not in players or now-players[key]['seen']>15:
+        voice_queues.pop(key,None); voice_last.pop(key,None)
+      me=players.get(uid)
+      if not me or now-me['seen']>15: return self.reply({'ok':True,'packets':[]})
+      if now-voice_last.get(uid,-100)<0.09: return self.reply({'ok':True,'packets':[]})
+      voice_last[uid]=now
+      if raw:
+       for key,target in players.items():
+        if key==uid or now-target['seen']>15 or now-voice_last.get(key,-100)>3: continue
+        if math.dist(me['pos'],target['pos'])<=20:
+         q=voice_queues.setdefault(key,[])
+         q.append({'id':uid,'name':me['name'],'audio':audio,'time':now})
+         del q[:-12]
+      packets=[{k:v for k,v in item.items() if k!='time'} for item in voice_queues.pop(uid,[]) if now-item['time']<1.5]
+     return self.reply({'ok':True,'packets':packets})
     elif self.path=='/world':
      row=db.execute('SELECT accounts.username, accounts.character FROM sessions JOIN accounts ON sessions.username=accounts.username WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row or not row[1]: raise ValueError('Invalid session or character')
