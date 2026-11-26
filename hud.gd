@@ -11,6 +11,8 @@ var level_label: Label
 var stats_label: Label
 var weapon_button: Button
 var armor_button: Button
+var gear_buttons := {}
+var gear_names := {"helmet":"Capacete","boots":"Botas","gloves":"Luvas","necklace":"Colar","ring":"Anel","bracelet":"Pulseira","shield":"Escudo"}
 var potions := 5
 var hp := 80
 var hp_bar: ProgressBar
@@ -107,7 +109,12 @@ func _ready():
 	label(inv,"Equipamentos iniciais")
 	weapon_button = button(inv,"Equipar espada",func(): item_action("weapon"))
 	armor_button = button(inv,"Equipar armadura",func(): item_action("armor"))
-	grid_slots(inv,4,12)
+	var equipment := GridContainer.new()
+	equipment.columns = 2
+	inv.add_child(equipment)
+	for key in gear_names:
+		var kind: String = key
+		gear_buttons[kind] = button(equipment,gear_names[kind],func(): item_action(kind))
 	money = label(inv,"Moedas: 100")
 	stock = button(inv,"Poção x5",use_potion)
 	pages(inv,5,5,40)
@@ -247,6 +254,9 @@ func apply_progress(data: Dictionary):
 	coins = int(data.get("coins",100))
 	weapon = int(data.get("weapon",0))
 	armor = int(data.get("armor",0))
+	var gear: Dictionary = data.get("gear",{})
+	for key in gear_buttons:
+		gear_buttons[key].text = gear_names[key]+(" ✓" if int(gear.get(key,0)) else " +")
 func item_action(cmd: String):
 	if is_instance_valid(world.net) and world.net.cloud_active: world.net.request_item(cmd)
 	else:
