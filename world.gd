@@ -111,7 +111,7 @@ func animate(state):
 				ap.advance(0.0)
 				break
 func _unhandled_input(event):
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_CTRL:
+	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		attack()
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * 0.003
