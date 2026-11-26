@@ -190,7 +190,8 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 func cloud_done(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
 	if not cloud_active: return
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		status.text = "HTTPS: erro %d / HTTP %d. Reconectando..." % [result,code]
+		var detail := body.get_string_from_utf8().substr(0,180)
+		status.text = "Falha no mundo • conexão %d • HTTP %d • %s" % [result,code,detail]
 		return
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if not data is Dictionary or not data.get("ok",false):
