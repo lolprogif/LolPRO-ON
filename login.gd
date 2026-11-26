@@ -84,8 +84,9 @@ func _ready():
 		else: send("character",{"token":token,"character":character.text}))
 	status = Label.new()
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status.text = "Teste local • use uma senha exclusiva de teste."
+	status.text = "Entre com sua conta ou crie uma nova."
 	v.add_child(status)
+	button(v,"Atualizar jogo",check_for_updates)
 	button(v,"Baixar jogo / Download",func(): OS.shell_open("https://lolprogif.github.io/LolPRO-ON/"))
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
