@@ -5,7 +5,14 @@ var address: LineEdit
 var remotes := {}
 var elapsed := 0.0
 const PORT := 7000
+var cloud_url := ""
+var cloud_token := ""
+var cloud_request := HTTPRequest.new()
+var cloud_active := false
 func _ready():
+	add_child(cloud_request)
+	cloud_request.timeout = 90
+	cloud_request.request_completed.connect(cloud_done)
 	multiplayer.peer_disconnected.connect(remove_remote)
 	multiplayer.connected_to_server.connect(func(): status.text = "Conectado")
 	multiplayer.connection_failed.connect(func(): leave(); status.text = "Falha na conexão")
@@ -32,15 +39,17 @@ func _ready():
 		var controls = preload("res://touch.gd").new()
 		controls.world = world
 		layer.add_child(controls)
-	if get_tree().has_meta("online_endpoint"):
-		var url := str(get_tree().get_meta("online_endpoint"))
-		var server_ip := url.trim_prefix("http://").trim_prefix("https://").get_slice("/",0).get_slice(":",0)
-		address.text = server_ip
-		if not OS.has_feature("mobile") and server_ip in ["127.0.0.1","localhost"]:
-			host()
-		else:
-			join()
+	if get_tree().has_meta("online_endpoint") and get_tree().has_meta("online_token"):
+		cloud_url = str(get_tree().get_meta("online_endpoint")).trim_suffix("/")
+		cloud_token = str(get_tree().get_meta("online_token"))
+		address.text = cloud_url
+		cloud_active = true
+		status.text = "Conectando ao mundo online..."
+
 func host():
+	if not cloud_url.is_empty():
+		status.text = "Use Conectar para o mundo online"
+		return
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(PORT,8)
@@ -51,6 +60,10 @@ func host():
 	status.text = "Hospedando • porta 7000"
 func join():
 	leave()
+	if not cloud_url.is_empty():
+		cloud_active = true
+		status.text = "Conectando ao mundo online..."
+		return
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_client(address.text.strip_edges(),PORT)
 	if err != OK:
@@ -59,13 +72,15 @@ func join():
 	multiplayer.multiplayer_peer = peer
 	status.text = "Conectando..."
 func leave():
+	cloud_active = false
+	cloud_request.cancel_request()
 	if multiplayer.has_multiplayer_peer():
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
 	for id in remotes.keys():
 		remove_remote(id)
 	status.text = "Offline"
-func remove_remote(id: int):
+func remove_remote(id):
 	if remotes.has(id):
 		remotes[id].node.queue_free()
 		remotes.erase(id)
@@ -74,8 +89,15 @@ func _process(delta):
 		r.node.position = r.node.position.lerp(r.target, minf(1.0,delta*15.0))
 		r.node.rotation.y = lerp_angle(r.node.rotation.y,r.angle,minf(1.0,delta*15.0))
 	elapsed += delta
-	if elapsed < 0.05: return
+	if elapsed < (0.25 if cloud_active else 0.05): return
 	elapsed = 0.0
+	if cloud_active:
+		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
+			var p: Vector3 = world.player.position
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current}
+			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
+			if err != OK: status.text = "Falha na conexão online"
+		return
 	if not multiplayer.has_multiplayer_peer(): return
 	if multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED: return
 	if multiplayer.is_server():
@@ -92,14 +114,14 @@ func submit(pos: Vector3, angle: float, state: String):
 @rpc("authority","call_remote","unreliable_ordered")
 func broadcast(id: int,pos: Vector3,angle: float,state: String):
 	if id != multiplayer.get_unique_id(): update_remote(id,pos,angle,state)
-func update_remote(id: int,pos: Vector3,angle: float,state: String):
+func update_remote(id,pos: Vector3,angle: float,state: String,display_name: String = ""):
 	if not state in ["Idle","Walking","Running","Jumping"]: return
 	if not remotes.has(id):
 		var n := Node3D.new()
 		world.add_child(n)
 		n.position = pos
 		var tag := Label3D.new()
-		tag.text = "Jogador %d" % id
+		tag.text = display_name if not display_name.is_empty() else "Jogador %s" % str(id)
 		tag.position.y = 2.1
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		n.add_child(tag)
@@ -122,3 +144,22 @@ func update_remote(id: int,pos: Vector3,angle: float,state: String):
 			ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 			ap.play(clip)
 			break
+
+func cloud_done(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
+	if not cloud_active: return
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		status.text = "Mundo online indisponível. Tentando novamente..."
+		return
+	var data = JSON.parse_string(body.get_string_from_utf8())
+	if not data is Dictionary or not data.get("ok",false):
+		status.text = "Falha no mundo online"
+		return
+	var seen := {}
+	for item in data.get("players",[]):
+		var id := str(item["id"])
+		var p: Array = item["pos"]
+		seen[id] = true
+		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"]))
+	for id in remotes.keys():
+		if not seen.has(id): remove_remote(id)
+	status.text = "Online • %d jogador(es)" % (seen.size()+1)
