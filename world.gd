@@ -191,6 +191,7 @@ func attack():
 				target.take_damage(10)
 
 func attack_effect(actor: Node3D):
+	punch_pose(actor)
 	var effect := MeshInstance3D.new()
 	var slash := BoxMesh.new()
 	slash.size = Vector3(1.6,0.07,0.15)
@@ -204,3 +205,47 @@ func attack_effect(actor: Node3D):
 	var tween := create_tween()
 	tween.tween_property(effect,"rotation:y",1.8,0.18).from(-1.8)
 	tween.tween_callback(effect.queue_free)
+
+# Procedural punch in skeleton space, shared by local and remote actors.
+func punch_pose(actor: Node3D):
+	for candidate in actor.find_children("*","Skeleton3D",true,false):
+		var sk: Skeleton3D = candidate
+		var upper := -1
+		var fore := -1
+		for i in range(sk.get_bone_count()):
+			var n := String(sk.get_bone_name(i)).to_lower().replace("_","").replace(".","")
+			if n.ends_with("rightarm") or n.ends_with("upperarmr"): upper = i
+			if n.ends_with("rightforearm") or n.ends_with("lowerarmr"): fore = i
+		if upper < 0 or fore < 0: continue
+		var tw := create_tween()
+		tw.tween_method(apply_punch.bind(sk,upper,fore),0.0,1.0,0.13)
+		tw.tween_method(apply_punch.bind(sk,upper,fore),1.0,0.0,0.22)
+		tw.tween_callback(clear_punch.bind(sk,upper,fore))
+
+func apply_punch(amount: float, sk: Skeleton3D, upper: int, fore: int):
+	if not is_instance_valid(sk): return
+	var shoulder := sk.get_bone_global_pose(upper)
+	var elbow := sk.get_bone_global_pose(fore)
+	var forward := Vector3.FORWARD
+	# The actor faces its local positive Z; use its world direction.
+	var actor_node: Node3D = sk
+	while actor_node.get_parent() is Node3D and actor_node.get_parent() != self:
+		actor_node = actor_node.get_parent()
+	forward = (sk.global_transform.basis.inverse() * actor_node.global_transform.basis.z).normalized()
+	var arm_dir := (elbow.origin-shoulder.origin).normalized()
+	if arm_dir.length_squared() < 0.001: return
+	var goal := (forward+Vector3.UP*0.08).normalized()
+	var rot := Quaternion(arm_dir,goal)
+	var posed := shoulder
+	posed.basis = Basis(Quaternion.IDENTITY.slerp(rot,amount))*shoulder.basis
+	sk.set_bone_global_pose_override(upper,posed,amount,true)
+	var lower := sk.get_bone_global_pose(fore)
+	var rest := sk.get_bone_rest(fore)
+	lower.origin = posed * rest.origin
+	lower.basis = posed.basis * rest.basis
+	sk.set_bone_global_pose_override(fore,lower,amount,true)
+
+func clear_punch(sk: Skeleton3D, upper: int, fore: int):
+	if not is_instance_valid(sk): return
+	sk.set_bone_global_pose_override(upper,Transform3D.IDENTITY,0.0,false)
+	sk.set_bone_global_pose_override(fore,Transform3D.IDENTITY,0.0,false)
