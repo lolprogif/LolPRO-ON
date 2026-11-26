@@ -8,6 +8,8 @@ on:
         required: true
         type: string
   push:
+    branches:
+      - "fix/release-updater-validation"
     tags:
       - "v*"
 
@@ -99,6 +101,7 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates
           mv templates ~/.local/share/godot/export_templates/$V.stable
       - name: Configurar assinatura Android persistente
+        if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -123,6 +126,21 @@ jobs:
           s = s.replace(marker, marker + values, 1)
           open(p, "w", encoding="utf-8").write(s)
           PY
+      - name: Configurar assinatura de teste Android para validar branch
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.android ~/.config/godot
+          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
+          python3 - <<'PY'
+          p = "export_presets.cfg"
+          s = open(p, encoding="utf-8").read()
+          marker = "[preset.0.options]\n"
+          values = 'keystore/debug="/home/runner/.android/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\n'
+          if marker not in s: raise SystemExit("Preset Android não encontrado")
+          open(p, "w", encoding="utf-8").write(s.replace(marker, marker + values, 1))
+          PY
       - name: Definir versão Android
         env:
           INPUT_VERSION: ${{ inputs.version }}
@@ -146,17 +164,29 @@ jobs:
           text=re.sub(r'const CURRENT_GAME_VERSION := "[^"]+"',f'const CURRENT_GAME_VERSION := "{v}"',text)
           open(login,"w",encoding="utf-8").write(text)
           PY
-      - name: Importar e exportar APK assinado
+      - name: Importar e exportar APK para validar branch
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        run: |
+          godot --headless --editor --import
+          mkdir -p build
+          godot --headless --export-debug "Android" build/LolPRO-ON-Android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify build/LolPRO-ON-Android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging build/LolPRO-ON-Android.apk | grep -q "com.rpg.mundointernacional"
+      - name: Importar e exportar APK assinado para distribuição
+        if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
         run: |
           godot --headless --editor --import
           mkdir -p build
           godot --headless --export-release "Android" build/LolPRO-ON-Android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify build/LolPRO-ON-Android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging build/LolPRO-ON-Android.apk | grep -q "com.rpg.mundointernacional"
       - uses: actions/upload-artifact@v4
         with:
           name: LolPRO-ON-Android
           path: build/LolPRO-ON-Android.apk
 
   publish:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     needs: [windows, android]
     runs-on: ubuntu-latest
     steps:
