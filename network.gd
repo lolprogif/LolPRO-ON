@@ -232,6 +232,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		if remotes.has(id):
 			var node: Node3D = remotes[id].node
 			world.show_gear(node,item)
+			show_remote_pet(node,item.get("pet",{}))
 			show_skill_event(id,node,item,str(item.get("class_name","Guerreiro")))
 			for child in node.get_children():
 				if child is Label3D: child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
@@ -282,3 +283,25 @@ func show_skill_event(id: String, actor: Node3D, data: Dictionary, cl: String):
 	var tween := create_tween()
 	tween.tween_property(effect,"scale",Vector3(3,1,3),0.55)
 	tween.tween_callback(effect.queue_free)
+
+func show_remote_pet(actor: Node3D, data: Dictionary):
+	var pet := actor.get_node_or_null("StarterPet") as Node3D
+	if not bool(data.get("summoned",false)):
+		if is_instance_valid(pet): pet.hide()
+		return
+	if not is_instance_valid(pet):
+		pet = Node3D.new()
+		pet.name = "StarterPet"
+		actor.add_child(pet)
+		pet.position = Vector3(1.2,0.6,1.0)
+		for i in range(5):
+			var part := MeshInstance3D.new()
+			part.mesh = SphereMesh.new()
+			part.position = [Vector3.ZERO,Vector3(0,0.2,-0.25),Vector3(-0.32,0.12,0),Vector3(0.32,0.12,0),Vector3(0,0,0.38)][i]
+			part.scale = [Vector3(0.64,0.48,0.9),Vector3(0.44,0.44,0.44),Vector3(0.6,0.12,0.48),Vector3(0.6,0.12,0.48),Vector3(0.18,0.18,0.7)][i]
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color("d9a344")
+			part.material_override = mat
+			pet.add_child(part)
+	pet.show()
+	pet.scale = Vector3.ONE * (1.0+float(int(data.get("level",1))-1)/100.0)
