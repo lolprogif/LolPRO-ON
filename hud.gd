@@ -25,6 +25,10 @@ var stock: Button
 var chat: RichTextLabel
 var coords: Label
 var theme_rpg := Theme.new()
+var preview_fx: Node3D
+var preview_rank := 9
+var preview_visible := true
+var preview_time := 0.0
 func style(bg: Color, border: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
@@ -129,6 +133,8 @@ func _ready():
 	money = label(inv,"Moedas: 100")
 	stock = button(inv,"Poção x5",use_potion)
 	build_item_inventory(inv)
+	button(inv,"Trajes / Aura / Pet",func(): toggle("Trajes"))
+	build_appearance_preview()
 	pages(window("Especial",Vector2(310,410)),8,5,40)
 	var c := window("Personagem",Vector2(300,350))
 	stats_label = label(c,"Nível 1 • EXP 0 / 100")
@@ -302,6 +308,11 @@ func use_potion():
 		hp = mini(100,hp+20)
 		refresh()
 func _process(_delta):
+	if is_instance_valid(preview_fx):
+		preview_time += _delta
+		preview_fx.rotate_y(_delta * 0.8)
+		preview_fx.visible = preview_visible and preview_rank >= 4
+		preview_fx.scale = Vector3.ONE * (0.85 + float(preview_rank)*0.035 + sin(preview_time*3.0)*0.04)
 	if is_instance_valid(coords):
 		coords.text = "X: %.0f  Z: %.0f" % [world.player.position.x,world.player.position.z]
 func _unhandled_key_input(event):
@@ -338,3 +349,50 @@ func build_item_inventory(parent: Node):
 	target.drop_target = true
 	target.equip_requested.connect(item_action)
 	parent.add_child(target)
+
+func build_appearance_preview():
+	var v := window("Trajes",Vector2(300,330))
+	label(v,"Prévia visual • sem bônus reais")
+	for item in ["Traje","Cabelo","Asas","Aura","Pet"]:
+		var slot := Button.new()
+		slot.text = item + " • espaço reservado"
+		slot.disabled = true
+		v.add_child(slot)
+	var toggle_fx := CheckButton.new()
+	toggle_fx.text = "Mostrar brilho de teste"
+	toggle_fx.button_pressed = true
+	v.add_child(toggle_fx)
+	toggle_fx.toggled.connect(func(value: bool): preview_visible = value)
+	var rank_label := label(v,"Refinamento visual +9")
+	var slider := HSlider.new()
+	slider.min_value = 0
+	slider.max_value = 9
+	slider.step = 1
+	slider.value = 9
+	v.add_child(slider)
+	slider.value_changed.connect(func(value: float):
+		preview_rank = int(value)
+		rank_label.text = "Refinamento visual +%d" % preview_rank)
+	button(v,"Ativar prévia no personagem",func():
+		if not is_instance_valid(preview_fx):
+			create_preview_fx()
+		windows["Trajes"].hide())
+func create_preview_fx():
+	preview_fx = Node3D.new()
+	world.player.add_child(preview_fx)
+	for i in range(18):
+		var orb := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 0.035
+		mesh.height = 0.07
+		orb.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = Color("ffd477")
+		mat.emission_enabled = true
+		mat.emission = Color("ffad32")
+		mat.emission_energy_multiplier = 2.0
+		orb.material_override = mat
+		var angle := TAU * float(i)/18.0
+		orb.position = Vector3(cos(angle)*0.85,0.25+float(i%3)*0.35,sin(angle)*0.85)
+		preview_fx.add_child(orb)
