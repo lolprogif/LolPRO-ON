@@ -80,7 +80,7 @@ func _input(event):
 			var hit := ""
 			var nearest := INF
 			for key in defaults:
-				var d := event.position.distance_to(center(key))
+				var d: float = event.position.distance_to(center(key))
 				if d <= float(radii[key]) and d < nearest:
 					hit = key
 					nearest = d
