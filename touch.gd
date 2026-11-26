@@ -24,8 +24,8 @@ func _input(event):
 			if fingers[event.index][0] == "move": world.touch_dir = ((event.position-fingers[event.index][1])/60.0).limit_length()
 			get_viewport().set_input_as_handled()
 		elif event.position.x > get_viewport_rect().size.x*0.5 and event.position.y < get_viewport_rect().size.y*0.6:
-			world.yaw -= event.relative.x*0.003
-			world.pitch = clampf(world.pitch-event.relative.y*0.003,-1.2,0.15)
+			world.yaw -= event.relative.x*0.003*world.touch_sensitivity/50.0
+			world.pitch = clampf(world.pitch-event.relative.y*0.003*world.touch_sensitivity/50.0,-1.2,0.15)
 func _process(_delta):
 	queue_redraw()
 func _draw():
