@@ -133,7 +133,7 @@ class Handler(BaseHTTPRequestHandler):
        me['potion_seq']=potion
        if 0<me['hp']<100 and me['potions']>0:
         me['potions']-=1; me['hp']=min(100,me['hp']+20)
-      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear')} for key,item in players.items() if key!=row[0]]
+      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0]]
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
