@@ -2,6 +2,5 @@
   "app": "LolPRO-ON",
   "version": "0.9",
   "windows_url": "https://github.com/lolprogif/LolPRO-ON/releases/latest/download/LolPRO-ON-Windows.zip",
-  "android_url": "https://github.com/lolprogif/LolPRO-ON/releases/latest/download/LolPRO-ON-Android.apk",
-  "play_store_url": "https://play.google.com/store/apps/details?id=com.rpg.mundointernacional"
+  "android_url": "https://github.com/lolprogif/LolPRO-ON/releases/latest/download/LolPRO-ON-Android.apk"
 }
