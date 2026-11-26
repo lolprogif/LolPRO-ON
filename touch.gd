@@ -120,7 +120,12 @@ func _draw():
 	for key in defaults:
 		var p := center(key)
 		var r := float(radii[key])
-		draw_circle(p,r,Color(1,1,1,0.48 if editing and selected==key else 0.25))
+		draw_circle(p,r,Color("10141cbb"))
+		var rim := Color("f7d88a") if editing and selected==key else Color("b69a59")
+		draw_arc(p,r-1.5,0,TAU,64,rim,2.0,true)
+		draw_arc(p,r*0.84,0,TAU,48,Color("b69a5944"),1.0,true)
+		if key == "move":
+			draw_circle(p+world.touch_dir*r*0.45,r*0.27,Color("b69a5977"))
 		if key == "mic":
 			var voice = get_tree().get_first_node_in_group("voice_controls")
 			var active: bool = is_instance_valid(voice) and voice.enabled
