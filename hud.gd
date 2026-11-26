@@ -3,6 +3,14 @@ var world: Node3D
 var root: Control
 var windows := {}
 var coins := 100
+var level := 1
+var xp := 0
+var weapon := 0
+var armor := 0
+var level_label: Label
+var stats_label: Label
+var weapon_button: Button
+var armor_button: Button
 var potions := 5
 var hp := 80
 var hp_bar: ProgressBar
@@ -36,7 +44,7 @@ func _ready():
 	var top := panel_at(Vector2(12,12),Vector2(220,100))
 	var t := VBoxContainer.new()
 	top.add_child(t)
-	label(t,"◆  AVENTUREIRO  |  Nv. 1")
+	level_label = label(t,"◆  AVENTUREIRO  |  Nv. 1")
 	hp_bar = bar(t, hp, Color("a72e32"))
 	bar(t,100,Color("346ab5"))
 	button(t,"Missões",func(): toggle("Missões"))
@@ -96,14 +104,17 @@ func _ready():
 		cp.visible = not cp.visible
 		if cp.visible: entry.grab_focus())
 	var inv := window("Inventário",Vector2(300,440),true)
-	label(inv,"Equipamentos • espaços reservados")
+	label(inv,"Equipamentos iniciais")
+	weapon_button = button(inv,"Equipar espada",func(): item_action("weapon"))
+	armor_button = button(inv,"Equipar armadura",func(): item_action("armor"))
 	grid_slots(inv,4,12)
 	money = label(inv,"Moedas: 100")
 	stock = button(inv,"Poção x5",use_potion)
 	pages(inv,5,5,40)
 	pages(window("Especial",Vector2(310,410)),8,5,40)
 	var c := window("Personagem",Vector2(300,350))
-	for line in ["Aventureiro • Nível 1","EXP: 0 / 100","VIT 10   INT 10   STR 10   DEX 10","Ataque 10   Defesa 5","Velocidade: caminhada / corrida","Dano mágico • evasão • bônus: pendentes"]:
+	stats_label = label(c,"Nível 1 • EXP 0 / 100")
+	for line in ["VIT 10   INT 10   STR 10   DEX 10","Ataque 10   Defesa 5","Velocidade: caminhada / corrida","Dano mágico • evasão • bônus: pendentes"]:
 		label(c,line)
 	for n in ["Habilidades","Emoções"]:
 		var v := window(n,Vector2(300,300))
@@ -122,11 +133,17 @@ func _ready():
 	var shop := window("Loja",Vector2(300,260))
 	label(shop,"Vendedora de teste • comércio local")
 	button(shop,"Comprar poção (10 moedas)",func():
+		if is_instance_valid(world.net) and world.net.cloud_active:
+			world.net.request_item("buy_potion")
+			return
 		if coins >= 10:
 			coins -= 10
 			potions += 1
 			refresh())
 	button(shop,"Vender poção (5 moedas)",func():
+		if is_instance_valid(world.net) and world.net.cloud_active:
+			world.net.request_item("sell_potion")
+			return
 		if potions > 0:
 			potions -= 1
 			coins += 5
@@ -224,7 +241,23 @@ func pages(parent: Node, count: int, columns: int, slots: int):
 func toggle(n: String):
 	if windows.has(n):
 		windows[n].visible = not windows[n].visible
+func apply_progress(data: Dictionary):
+	level = int(data.get("level",1))
+	xp = int(data.get("xp",0))
+	coins = int(data.get("coins",100))
+	weapon = int(data.get("weapon",0))
+	armor = int(data.get("armor",0))
+func item_action(cmd: String):
+	if is_instance_valid(world.net) and world.net.cloud_active: world.net.request_item(cmd)
+	else:
+		if cmd == "weapon": weapon = 1-weapon
+		if cmd == "armor": armor = 1-armor
+		refresh()
 func refresh():
+	level_label.text = "◆ AVENTUREIRO | Nv. %d" % level
+	stats_label.text = "Nível %d • EXP %d / 100" % [level,xp]
+	weapon_button.text = "Desequipar espada" if weapon else "Equipar espada"
+	armor_button.text = "Desequipar armadura" if armor else "Equipar armadura"
 	money.text = "Moedas: %d" % coins
 	stock.text = "Poção x%d" % potions
 	hp_bar.value = hp
