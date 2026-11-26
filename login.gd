@@ -305,9 +305,6 @@ func show_selection(items: Array, legacy: String):
 		slots.add_item("%d  •  %s" % [i+1,slot_names.get(i,"Criar personagem")],i)
 	v.add_child(slots)
 	character = field(v,"Nome do novo personagem")
-	var classes := OptionButton.new()
-	for cl in ["Guerreiro","Ninja"]: classes.add_item(cl)
-	v.add_child(classes)
 	var genders := OptionButton.new()
 	genders.add_item("Masculino")
 	genders.add_item("Feminino")
@@ -320,18 +317,13 @@ func show_selection(items: Array, legacy: String):
 		character.text = str(slot_names.get(index,""))
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
-		classes.select(maxi(0,["Guerreiro","Ninja"].find(profile.get("class","Guerreiro"))))
 		genders.select(1 if profile.get("gender","Masculino") == "Feminino" else 0)
-		classes.disabled = slot_names.has(index)
 		genders.disabled = slot_names.has(index)
-		preview_class = classes.selected
+		preview_class = 0
 		preview_gender = genders.selected
 		play_preview("Idle")
 		preview.text = "Aventureiro • "+character.text if slot_names.has(index) else "Novo aventureiro"
 	slots.item_selected.connect(choose)
-	classes.item_selected.connect(func(index: int):
-		preview_class = index
-		play_preview("Idle"))
 	genders.item_selected.connect(func(index: int):
 		preview_gender = index
 		play_preview("Idle"))
@@ -340,7 +332,7 @@ func show_selection(items: Array, legacy: String):
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":classes.get_item_text(classes.selected),"gender":genders.get_item_text(genders.selected)}))
+		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":genders.get_item_text(genders.selected)}))
 	button(v,"Voltar",func():
 		token = ""
 		selection.queue_free()
