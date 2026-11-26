@@ -9,6 +9,11 @@ var cloud_url := ""
 var cloud_token := ""
 var cloud_request := HTTPRequest.new()
 var cloud_active := false
+var attack_seq := ""
+var potion_seq := ""
+var generation := 0
+var health := 100
+var remote_attacks := {}
 func _ready():
 	add_child(cloud_request)
 	cloud_request.timeout = 90
@@ -102,7 +107,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current}
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -162,12 +167,36 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 	if not data is Dictionary or not data.get("ok",false):
 		status.text = "Falha no mundo online"
 		return
+	var own: Dictionary = data.get("self",{})
+	if not own.is_empty():
+		health = int(own.get("hp",100))
+		var hud = world.get_children().filter(func(n): return n is CanvasLayer)[0]
+		hud.hp = health
+		hud.potions = int(own.get("potions",5))
+		hud.refresh()
+		var next_generation := int(own.get("generation",0))
+		if next_generation != generation:
+			generation = next_generation
+			world.player.position = Vector3(0,0.1,0)
+			world.player.velocity = Vector3.ZERO
 	var seen := {}
 	for item in data.get("players",[]):
 		var id := str(item["id"])
 		var p: Array = item["pos"]
 		seen[id] = true
-		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"]))
+		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP")
+		if remotes.has(id):
+			var node: Node3D = remotes[id].node
+			for child in node.get_children():
+				if child is Label3D: child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
+			var seq := str(item.get("attack_seq",""))
+			if remote_attacks.has(id) and remote_attacks[id] != seq and not seq.is_empty(): world.attack_effect(node)
+			remote_attacks[id] = seq
 	for id in remotes.keys():
 		if not seen.has(id): remove_remote(id)
 	status.text = "Online HTTPS • %d jogador(es)" % (seen.size()+1)
+
+func request_attack():
+	if cloud_active and health > 0: attack_seq = str(Time.get_ticks_usec())+"-"+str(randi())
+func request_potion():
+	if cloud_active: potion_seq = str(Time.get_ticks_usec())+"-"+str(randi())
