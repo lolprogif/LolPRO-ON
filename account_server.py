@@ -14,6 +14,8 @@ with sqlite3.connect(DB) as db:
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS progress (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, potions INTEGER DEFAULT 5, weapon INTEGER DEFAULT 0, armor INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
  db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -80,6 +82,10 @@ class Handler(BaseHTTPRequestHandler):
       if row[0] in players and players[row[0]].get('slot')!=slot: del players[row[0]]
       me=players.setdefault(row[0],{'id':row[0],'hp':100,'last_attack':-100,'attack_seq':'','respawn_at':0,'generation':0,'potions':5,'potion_seq':''})
       me.update(slot=slot,level=saved[0],xp=saved[1],coins=saved[2],potions=saved[3],weapon=saved[4],armor=saved[5])
+      kinds=('helmet','boots','gloves','necklace','ring','bracelet','shield')
+      gear={k:0 for k in kinds}
+      gear.update(dict(db.execute('SELECT kind,equipped FROM gear WHERE username=? AND slot=?',(row[0],slot))))
+      me['gear']=gear
       item=str(d.get('item',''))[:80]
       if item and item!=me.get('item_seq',''):
        me['item_seq']=item
@@ -88,6 +94,9 @@ class Handler(BaseHTTPRequestHandler):
        elif cmd=='sell_potion' and me['potions']>0: me['coins']+=5; me['potions']-=1
        elif cmd=='weapon': me['weapon']=1-me['weapon']
        elif cmd=='armor': me['armor']=1-me['armor']
+       elif cmd in kinds:
+        gear[cmd]=1-gear[cmd]
+        db.execute('INSERT OR REPLACE INTO gear VALUES(?,?,?,?)',(row[0],slot,cmd,gear[cmd]))
       if me['hp']==0 and now>=me['respawn_at']:
        me['hp']=100; me['generation']+=1
       if d.get('generation',0)!=me['generation']: pos=[0,0.1,0]
@@ -112,10 +121,11 @@ class Handler(BaseHTTPRequestHandler):
        me['potion_seq']=potion
        if 0<me['hp']<100 and me['potions']>0:
         me['potions']-=1; me['hp']=min(100,me['hp']+20)
-      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq')} for key,item in players.items() if key!=row[0]]
+      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear')} for key,item in players.items() if key!=row[0]]
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
+      own['gear']=gear
       own['item_seq']=me.get('item_seq','')
       db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
