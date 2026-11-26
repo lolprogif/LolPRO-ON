@@ -50,11 +50,11 @@ jobs:
       - name: Gerar APK
         run: |
           mkdir -p build
-          godot --headless --export-debug "Android" build/LolPro.apk
+          godot --headless --export-release "Android" build/LolPro.apk
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: LolPro-Android
+          name: LolPro-Android-Signed
           path: build/LolPro.apk
           if-no-files-found: error
