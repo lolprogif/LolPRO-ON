@@ -17,6 +17,14 @@ const CURRENT_VERSION := "0.9.0"
 const UPDATE_MANIFEST := "https://raw.githubusercontent.com/lolprogif/LolPRO-ON/main/latest.json"
 var action := ""
 var token := ""
+var login_center: CenterContainer
+var selected_slot := 0
+var slot_names := {}
+var selection: CenterContainer
+var loading := false
+var progress: ProgressBar
+var loading_label: Label
+var fade: ColorRect
 var settings := ConfigFile.new()
 var language: OptionButton
 var title_label: Label
@@ -34,6 +42,7 @@ func _ready():
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var center := CenterContainer.new()
+	login_center = center
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	var panel := PanelContainer.new()
@@ -83,6 +92,7 @@ func _ready():
 		if token.is_empty(): status.text = "Entre na conta primeiro / Login first"
 		else: send("character",{"token":token,"character":character.text}))
 	status = Label.new()
+	status.name = "LoginStatus"
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.text = "Entre com sua conta ou crie uma nova."
 	v.add_child(status)
@@ -204,6 +214,20 @@ func find_server():
 	discovery_left = 4.0
 	status.text = "Procurando servidor na rede local..."
 func _process(delta):
+	if loading:
+		var values := []
+		var state := ResourceLoader.load_threaded_get_status("res://World.tscn",values)
+		if not values.is_empty(): progress.value = float(values[0])*100.0
+		if state == ResourceLoader.THREAD_LOAD_LOADED:
+			loading = false
+			progress.value = 100
+			var scene := ResourceLoader.load_threaded_get("res://World.tscn") as PackedScene
+			await get_tree().create_timer(0.5).timeout
+			get_tree().change_scene_to_packed(scene)
+		elif state == ResourceLoader.THREAD_LOAD_FAILED or state == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			loading = false
+			loading_label.text = "Falha ao carregar. Reinicie o jogo."
+		return
 	if discovery_left <= 0.0: return
 	discovery_left -= delta
 	while discovery.get_available_packet_count() > 0:
@@ -251,19 +275,83 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		settings.set_value("login","remember_user",remember_user.button_pressed)
 		settings.set_value("login","username",user.text if remember_user.button_pressed else "")
 		settings.save("user://login.cfg")
-		character.text = d.character
-		character.visible = true
-		for child in get_children():
-			if child is CenterContainer:
-				for panel in child.get_children():
-					for box in panel.get_children():
-						if box is VBoxContainer:
-							for control in box.get_children():
-								if control is Button and control.name == "PlayButton": control.visible = true
 		password.clear()
-		status.text = "Login realizado. Escolha seu personagem."
+		show_selection(d.get("characters",[]),str(d.get("character","")))
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().set_meta("online_token",token)
 		get_tree().set_meta("hud_profile",user.text.strip_edges().to_lower())
-		get_tree().change_scene_to_file("res://World.tscn")
+		start_loading()
+
+func show_selection(items: Array, legacy: String):
+	login_center.hide()
+	slot_names.clear()
+	for item in items:
+		slot_names[int(item.get("slot",0))] = str(item.get("name",""))
+	if slot_names.is_empty() and not legacy.is_empty(): slot_names[0] = legacy
+	selection = CenterContainer.new()
+	add_child(selection)
+	selection.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(480,0)
+	selection.add_child(panel)
+	var v := VBoxContainer.new()
+	panel.add_child(v)
+	var heading := Label.new()
+	heading.text = "LolPRO-ON  |  Escolha seu personagem"
+	heading.add_theme_font_size_override("font_size",26)
+	v.add_child(heading)
+	var slots := OptionButton.new()
+	for i in range(4):
+		slots.add_item("%d  •  %s" % [i+1,slot_names.get(i,"Criar personagem")],i)
+	v.add_child(slots)
+	character = field(v,"Nome do novo personagem")
+	var preview := Label.new()
+	preview.text = "Aventureiro • Campo inicial"
+	v.add_child(preview)
+	var choose := func(index: int):
+		selected_slot = index
+		character.text = str(slot_names.get(index,""))
+		character.editable = not slot_names.has(index)
+		preview.text = "Aventureiro • "+character.text if slot_names.has(index) else "Novo aventureiro"
+	slots.item_selected.connect(choose)
+	choose.call(0)
+	button(v,"Entrar no mundo",func():
+		if character.text.strip_edges().length()<3:
+			status.text = "Digite um nome com pelo menos 3 caracteres."
+			return
+		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges()}))
+	button(v,"Voltar",func():
+		token = ""
+		selection.queue_free()
+		login_center.show()
+		status = login_center.find_child("LoginStatus",true,false) as Label
+		if status: status.text = "Entre com sua conta."))
+	status = Label.new()
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(status)
+func start_loading():
+	selection.hide()
+	fade = ColorRect.new()
+	fade.color = Color("101b29")
+	add_child(fade)
+	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var c := CenterContainer.new()
+	fade.add_child(c)
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(400,0)
+	c.add_child(v)
+	loading_label = Label.new()
+	loading_label.text = "A jornada de "+character.text+" começa..."
+	loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(loading_label)
+	progress = ProgressBar.new()
+	v.add_child(progress)
+	fade.modulate.a = 0.0
+	create_tween().tween_property(fade,"modulate:a",1.0,0.7)
+	await get_tree().create_timer(0.8).timeout
+	if ResourceLoader.load_threaded_request("res://World.tscn") == OK:
+		loading = true
+	else:
+		loading_label.text = "Não foi possível iniciar o carregamento."
