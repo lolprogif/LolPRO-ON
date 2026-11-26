@@ -76,7 +76,6 @@ func _ready():
 	v.add_child(status)
 	button(v,"Verificar atualizações",check_for_updates)
 	button(v,"Baixar atualização / Instalar APK",download_update)
-	button(v,"Abrir Google Play",func(): OS.shell_open("https://play.google.com/store/apps/details?id=com.rpg.mundointernacional"))
 	check_for_updates()
 	button(v,"Modo offline / Offline",func():
 		get_tree().remove_meta("online_endpoint")
