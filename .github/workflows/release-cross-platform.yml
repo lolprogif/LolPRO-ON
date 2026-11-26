@@ -1,0 +1,153 @@
+name: Publicar LolPRO-ON para Windows e Android
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versao (ex.: 0.10.0)"
+        required: true
+        default: "0.10.0"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Definir versao
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+          }
+          "LOLPRO_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Instalar Godot
+        shell: pwsh
+        run: |
+          $version = "4.7.2"
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$version-stable"
+          Invoke-WebRequest "$base/Godot_v$version-stable_win64.exe.zip" -OutFile godot.zip
+          Expand-Archive godot.zip godot
+          $godot = (Get-ChildItem godot -Filter Godot*.exe | Select-Object -First 1).FullName
+          Invoke-WebRequest "$base/Godot_v$version-stable_export_templates.tpz" -OutFile templates.tpz
+          Expand-Archive templates.tpz templates
+          New-Item -ItemType Directory -Force "$env:APPDATA/Godot/export_templates/$version.stable" | Out-Null
+          Copy-Item "templates/templates/*" "$env:APPDATA/Godot/export_templates/$version.stable" -Recurse -Force
+          "GODOT_EXE=$godot" >> $env:GITHUB_ENV
+
+      - name: Importar e exportar Windows
+        shell: pwsh
+        run: |
+          & "$env:GODOT_EXE" --headless --editor --path . --import
+          New-Item -ItemType Directory -Force build/windows | Out-Null
+          & "$env:GODOT_EXE" --headless --path . --export-release "Windows Desktop" build/windows/LolPRO-ON.exe
+          Copy-Item account_server.py,INICIAR_CONTAS.bat,REDEFINIR_SENHA.py build/windows/
+          @'
+          @echo off
+          cd /d "%~dp0"
+          start "" "%~dp0LolPRO-ON.exe"
+          '@ | Set-Content -Encoding ASCII build/windows/INICIAR_LOLPRO.bat
+          Compress-Archive -Path build/windows/* -DestinationPath build/LolPRO-ON-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LolPRO-ON-Windows
+          path: build/LolPRO-ON-Windows.zip
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools"
+
+      - name: Instalar SDK e Godot
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          V=4.7.2
+          URL=https://github.com/godotengine/godot-builds/releases/download/$V-stable
+          wget "$URL/Godot_v$V-stable_linux.x86_64.zip"
+          unzip "Godot_v$V-stable_linux.x86_64.zip"
+          sudo mv "Godot_v$V-stable_linux.x86_64" /usr/local/bin/godot
+          wget "$URL/Godot_v$V-stable_export_templates.tpz"
+          unzip "Godot_v$V-stable_export_templates.tpz"
+          mkdir -p ~/.local/share/godot/export_templates
+          mv templates ~/.local/share/godot/export_templates/$V.stable
+
+      - name: Preparar assinatura de teste para APK direto
+        run: |
+          mkdir -p ~/.android ~/.config/godot
+          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
+          python3 - <<'PY'
+          p = "export_presets.cfg"
+          s = open(p, encoding="utf-8").read()
+          marker = "[preset.0.options]\n"
+          opts = 'keystore/debug="/home/runner/.android/debug.keystore"\nkeystore/debug_user="androiddebugkey"\nkeystore/debug_password="android"\n'
+          s = s.replace(marker, marker + opts, 1)
+          open(p, "w", encoding="utf-8").write(s)
+          PY
+
+      - name: Importar e exportar APK
+        run: |
+          godot --headless --editor --import
+          mkdir -p build
+          godot --headless --export-debug "Android" build/LolPRO-ON-Android.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LolPRO-ON-Android-APK
+          path: build/LolPRO-ON-Android.apk
+
+  release:
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Montar manifesto de versao
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then VERSION="$INPUT_VERSION"; else VERSION="${REF_NAME#v}"; fi
+          mkdir -p release-assets/manifest
+          cat > release-assets/manifest/latest.json <<EOF
+          {
+            "app": "LolPRO-ON",
+            "version": "$VERSION",
+            "tag": "v$VERSION",
+            "windows_asset": "LolPRO-ON-Windows.zip",
+            "android_asset": "LolPRO-ON-Android.apk",
+            "release_page": "https://github.com/${{ github.repository }}/releases/latest"
+          }
+          EOF
+      - name: Publicar Release e arquivos
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+          name: LolPRO-ON ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          draft: true
+          prerelease: true
+          files: |
+            release-assets/LolPRO-ON-Windows/LolPRO-ON-Windows.zip
+            release-assets/LolPRO-ON-Android-APK/LolPRO-ON-Android.apk
+            release-assets/manifest/latest.json
