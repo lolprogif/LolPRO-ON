@@ -132,16 +132,40 @@ class Handler(BaseHTTPRequestHandler):
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
            if me['xp']>=100: me['xp']-=100; me['level']+=1
+      me.setdefault('mana',100.0)
+      me['mana']=min(100.0,me['mana']+max(0,now-me.get('mana_time',now))*4)
+      me['mana_time']=now
+      cooldowns=me.setdefault('cooldowns',{})
+      skill=str(d.get('skill_seq',''))[:80]
+      idx=d.get('skill_index',-1)
+      if skill and skill!=me.get('skill_ack',''):
+       me['skill_ack']=skill
+       if type(idx) is int and 0<=idx<6 and me['level']>=[5,8,10,12,15,20][idx] and me['hp']>0 and me['mana']>=10+idx*3 and now>=cooldowns.get(idx,0):
+        me['mana']-=10+idx*3
+        cooldowns[idx]=now+4+idx*2
+        me['skill_event']=skill
+        me['skill_index']=idx
+        if profile[0]=='Xamã' and idx==0:
+         me['hp']=min(100,me['hp']+30)
+        else:
+         for key,target in players.items():
+          if key!=row[0] and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
+           target['hp']=max(0,target['hp']-(15+idx*4))
+           if target['hp']==0: target['respawn_at']=now+3
       potion=str(d.get('potion',''))[:80]
       if potion and potion!=me['potion_seq']:
        me['potion_seq']=potion
        if 0<me['hp']<100 and me['potions']>0:
         me['potions']-=1; me['hp']=min(100,me['hp']+20)
       others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0]]
+      for item in others:
+       source=players[item['id']]
+       item.update(class_name=source.get('class','Guerreiro'),skill_event=source.get('skill_event',''),skill_index=source.get('skill_index',-1))
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
       own['class'],own['gender']=profile
+      own.update(mana=int(me['mana']),skill_ack=me.get('skill_ack',''),skill_event=me.get('skill_event',''),skill_index=me.get('skill_index',-1),cooldowns=[max(0,cooldowns.get(i,0)-now) for i in range(6)])
       own['gear']=gear
       own['ranks']=ranks
       own['item_seq']=me.get('item_seq','')
