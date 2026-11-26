@@ -16,6 +16,8 @@ with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
+with sqlite3.connect(DB) as db:
+ db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
 def digest(password,salt): return hashlib.pbkdf2_hmac('sha256',password.encode(),bytes.fromhex(salt),600000).hex()
 class Handler(BaseHTTPRequestHandler):
  def do_GET(self):
@@ -86,6 +88,8 @@ class Handler(BaseHTTPRequestHandler):
       gear={k:0 for k in kinds}
       gear.update(dict(db.execute('SELECT kind,equipped FROM gear WHERE username=? AND slot=?',(row[0],slot))))
       me['gear']=gear
+      ranks=dict(db.execute('SELECT kind,rank FROM upgrades WHERE username=? AND slot=?',(row[0],slot)))
+      me['ranks']=ranks
       item=str(d.get('item',''))[:80]
       if item and item!=me.get('item_seq',''):
        me['item_seq']=item
@@ -94,6 +98,14 @@ class Handler(BaseHTTPRequestHandler):
        elif cmd=='sell_potion' and me['potions']>0: me['coins']+=5; me['potions']-=1
        elif cmd=='weapon': me['weapon']=1-me['weapon']
        elif cmd=='armor': me['armor']=1-me['armor']
+       elif isinstance(cmd,str) and cmd.startswith('upgrade:'):
+        kind=cmd.split(':',1)[1]
+        rank=ranks.get(kind,0)
+        cost=25*(rank+1)
+        if kind in (*kinds,'weapon','armor') and rank<9 and me['coins']>=cost:
+         me['coins']-=cost
+         ranks[kind]=rank+1
+         db.execute('INSERT OR REPLACE INTO upgrades VALUES(?,?,?,?)',(row[0],slot,kind,rank+1))
        elif cmd in kinds:
         gear[cmd]=1-gear[cmd]
         db.execute('INSERT OR REPLACE INTO gear VALUES(?,?,?,?)',(row[0],slot,cmd,gear[cmd]))
@@ -111,7 +123,7 @@ class Handler(BaseHTTPRequestHandler):
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
          if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
-          target['hp']=max(0,target['hp']-max(1,10+5*me['weapon']-3*target.get('armor',0)))
+          target['hp']=max(0,target['hp']-max(1,10+(5+ranks.get('weapon',0))*me['weapon']-(3+target.get('ranks',{}).get('armor',0))*target.get('armor',0)))
           if target['hp']==0:
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
@@ -126,6 +138,7 @@ class Handler(BaseHTTPRequestHandler):
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
       own={k:me[k] for k in ('hp','generation','potions','attack_seq','potion_seq','level','xp','coins','weapon','armor')}
       own['gear']=gear
+      own['ranks']=ranks
       own['item_seq']=me.get('item_seq','')
       db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
