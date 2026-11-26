@@ -4,7 +4,8 @@ voice_queues = {}
 voice_last = {}
 world_lock = threading.Lock()
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-DB=os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
+DB=os.environ.get('LOLPRO_DB_PATH') or os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
+os.makedirs(os.path.dirname(os.path.abspath(DB)),exist_ok=True)
 with sqlite3.connect(DB) as db:
  db.execute('CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, email TEXT UNIQUE, salt TEXT, password TEXT, character TEXT DEFAULT "")')
  db.execute('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, expires INTEGER)')
@@ -43,10 +44,11 @@ class Handler(BaseHTTPRequestHandler):
     if self.path=='/register':
      e=str(d.get('email','')).strip().lower()
      if not re.fullmatch(r'[a-z0-9_]{3,24}',u) or not 8<=len(p)<=128 or '@' not in e or len(e)>254: raise ValueError('Invalid username, email or password (8+ characters)')
+     if u==os.environ.get('LOLPRO_OWNER','').strip().lower(): raise ValueError('Nome reservado. Contate o suporte.')
      salt=secrets.token_hex(16); db.execute('INSERT INTO accounts(username,email,salt,password) VALUES(?,?,?,?)',(u,e,salt,digest(p,salt)))
     elif self.path=='/login':
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
-     if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Invalid credentials')
+     if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Usuário ou senha incorretos. Confira os dados ou contate o suporte.')
      if db.execute('SELECT 1 FROM bans WHERE username=?',(u,)).fetchone(): raise ValueError('Conta banida')
      token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name,'class':cl,'gender':gender} for i,name,cl,gender in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot WHERE c.username=? ORDER BY c.slot",(u,))]})
     elif self.path=='/admin':
