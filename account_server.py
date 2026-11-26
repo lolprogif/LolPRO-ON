@@ -55,6 +55,8 @@ with connect_db() as db:
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS class_profiles (username TEXT, slot INTEGER, class TEXT, gender TEXT, PRIMARY KEY(username,slot))')
 with connect_db() as db:
+ db.execute("CREATE TABLE IF NOT EXISTS avatar_profiles (username TEXT, slot INTEGER, avatar TEXT DEFAULT 'whiteclown', PRIMARY KEY(username,slot))")
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, permissions TEXT)')
  db.execute('CREATE TABLE IF NOT EXISTS admin_audit (username TEXT, command TEXT, created INTEGER)')
  db.execute('CREATE TABLE IF NOT EXISTS bans (username TEXT PRIMARY KEY)')
@@ -89,7 +91,7 @@ class Handler(BaseHTTPRequestHandler):
      row=db.execute('SELECT salt,password,character FROM accounts WHERE username=?',(u,)).fetchone()
      if not row or len(p)>128 or not hmac.compare_digest(digest(p,row[0]),row[1]): raise ValueError('Usuário ou senha incorretos. Confira os dados ou contate o suporte.')
      if db.execute('SELECT 1 FROM bans WHERE username=?',(u,)).fetchone(): raise ValueError('Conta banida')
-     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name,'class':cl,'gender':gender} for i,name,cl,gender in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot WHERE c.username=? ORDER BY c.slot",(u,))]})
+     token=secrets.token_urlsafe(32); db.execute('INSERT INTO sessions VALUES(?,?,?)',(token,u,int(time.time())+86400)); return self.reply({'ok':True,'token':token,'character':row[2],'characters':[{'slot':i,'name':name,'class':cl,'gender':gender,'avatar':avatar} for i,name,cl,gender,avatar in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino'),COALESCE(a.avatar,'whiteclown') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot LEFT JOIN avatar_profiles a ON c.username=a.username AND c.slot=a.slot WHERE c.username=? ORDER BY c.slot",(u,))]})
     elif self.path=='/admin':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      if not row: raise ValueError('Invalid session')
@@ -189,6 +191,8 @@ class Handler(BaseHTTPRequestHandler):
       me['gear']=gear
       profile=db.execute('SELECT class,gender FROM class_profiles WHERE username=? AND slot=?',(row[0],slot)).fetchone() or ('Guerreiro','Masculino')
       me['class'],me['gender']=profile
+      avatar_row=db.execute('SELECT avatar FROM avatar_profiles WHERE username=? AND slot=?',(row[0],slot)).fetchone()
+      me['avatar']=avatar_row[0] if avatar_row else 'whiteclown'
       ranks=dict(db.execute('SELECT kind,rank FROM upgrades WHERE username=? AND slot=?',(row[0],slot)))
       me['ranks']=ranks
       item=str(d.get('item',''))[:80]
@@ -302,6 +306,9 @@ class Handler(BaseHTTPRequestHandler):
      if gender not in ('Masculino','Feminino'): raise ValueError('Invalid gender')
      db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
      db.execute('INSERT OR IGNORE INTO class_profiles VALUES(?,?,?,?)',(row[0],slot,cl,gender))
+     avatar=str(d.get('avatar','whiteclown'))
+     if avatar not in ('whiteclown','erika_archer','maria'): raise ValueError('Invalid avatar')
+     db.execute('INSERT OR REPLACE INTO avatar_profiles VALUES(?,?,?)',(row[0],slot,avatar))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
     else: raise ValueError('Unknown endpoint')
