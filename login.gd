@@ -517,7 +517,7 @@ func show_selection(items: Array, legacy: String):
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		var avatar_id := ["whiteclown","erika_archer","maria"][avatars.selected]
+		var avatar_id: String = ["whiteclown","erika_archer","maria"][avatars.selected]
 		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Masculino" if avatar_id == "whiteclown" else "Feminino","avatar":avatar_id}))
 	button(v,"Voltar",func():
 		token = ""
