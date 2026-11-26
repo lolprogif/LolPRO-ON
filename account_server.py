@@ -4,24 +4,57 @@ voice_queues = {}
 voice_last = {}
 world_lock = threading.Lock()
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+DATABASE_URL=os.environ.get('DATABASE_URL','').strip()
 DB=os.environ.get('LOLPRO_DB_PATH') or os.path.join(os.path.dirname(__file__),'accounts.sqlite3')
-os.makedirs(os.path.dirname(os.path.abspath(DB)),exist_ok=True)
-with sqlite3.connect(DB) as db:
+from contextlib import contextmanager, closing
+integrity_errors=(sqlite3.IntegrityError,)
+database_errors=(sqlite3.Error,)
+if DATABASE_URL:
+ import psycopg
+ from psycopg_pool import ConnectionPool
+ integrity_errors+=(psycopg.IntegrityError,)
+ database_errors+=(psycopg.Error,)
+ pool=ConnectionPool(DATABASE_URL,kwargs={'sslmode':'require','connect_timeout':10},min_size=1,max_size=4,open=False)
+ pool.open(wait=True,timeout=30)
+ class PostgresDB:
+  def __init__(self,conn): self.conn=conn
+  def execute(self,sql,params=()):
+   sql=sql.replace('?', '%s').replace('""', "''")
+   if sql.startswith('INSERT OR IGNORE INTO '):
+    sql=sql.replace('INSERT OR IGNORE INTO ','INSERT INTO ',1)+' ON CONFLICT DO NOTHING'
+   elif sql.startswith('INSERT OR REPLACE INTO '):
+    table=sql.split()[4]
+    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot')}[table]
+    sql=sql.replace('INSERT OR REPLACE INTO ','INSERT INTO ',1)+f' ON CONFLICT ({keys}) DO UPDATE SET {field}=EXCLUDED.{field}'
+   return self.conn.execute(sql,params)
+  def commit(self): self.conn.commit()
+else:
+ os.makedirs(os.path.dirname(os.path.abspath(DB)),exist_ok=True)
+@contextmanager
+def connect_db():
+ if DATABASE_URL:
+  with pool.connection() as conn:
+   yield PostgresDB(conn)
+ else:
+  with closing(sqlite3.connect(DB)) as conn:
+   with conn:
+    yield conn
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, email TEXT UNIQUE, salt TEXT, password TEXT, character TEXT DEFAULT "")')
  db.execute('CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, expires INTEGER)')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS characters (username TEXT, slot INTEGER, name TEXT, PRIMARY KEY(username,slot))')
  db.execute('INSERT OR IGNORE INTO characters SELECT username,0,character FROM accounts WHERE character != ""')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS progress (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, potions INTEGER DEFAULT 5, weapon INTEGER DEFAULT 0, armor INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
  db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS upgrades (username TEXT, slot INTEGER, kind TEXT, rank INTEGER DEFAULT 1, PRIMARY KEY(username,slot,kind))')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS class_profiles (username TEXT, slot INTEGER, class TEXT, gender TEXT, PRIMARY KEY(username,slot))')
-with sqlite3.connect(DB) as db:
+with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, permissions TEXT)')
  db.execute('CREATE TABLE IF NOT EXISTS admin_audit (username TEXT, command TEXT, created INTEGER)')
  db.execute('CREATE TABLE IF NOT EXISTS bans (username TEXT PRIMARY KEY)')
@@ -40,7 +73,7 @@ class Handler(BaseHTTPRequestHandler):
    n=int(self.headers.get('Content-Length','0'))
    if not 0<n<=(24000 if self.path=='/voice' else 8192): raise ValueError('Invalid request')
    d=json.loads(self.rfile.read(n)); u=str(d.get('username','')).strip().lower(); p=str(d.get('password',''))
-   with sqlite3.connect(DB) as db:
+   with connect_db() as db:
     if self.path=='/register':
      e=str(d.get('email','')).strip().lower()
      if not re.fullmatch(r'[a-z0-9_]{3,24}',u) or not 8<=len(p)<=128 or '@' not in e or len(e)>254: raise ValueError('Invalid username, email or password (8+ characters)')
@@ -245,7 +278,8 @@ class Handler(BaseHTTPRequestHandler):
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
     else: raise ValueError('Unknown endpoint')
    self.reply({'ok':True})
-  except sqlite3.IntegrityError: self.reply({'ok':False,'error':'Account already exists'})
+  except integrity_errors: self.reply({'ok':False,'error':'Account already exists'})
+  except database_errors: self.reply({'ok':False,'error':'Banco de dados indisponível'})
   except (ValueError,TypeError,AttributeError) as e: self.reply({'ok':False,'error':str(e)})
  def reply(self,d):
   b=json.dumps(d).encode(); self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
