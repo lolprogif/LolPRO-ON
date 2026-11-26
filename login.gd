@@ -20,6 +20,7 @@ var token := ""
 var login_center: CenterContainer
 var selected_slot := 0
 var slot_names := {}
+var slot_profiles := {}
 var selection: CenterContainer
 var loading := false
 var progress: ProgressBar
@@ -289,8 +290,10 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 func show_selection(items: Array, legacy: String):
 	login_center.hide()
 	slot_names.clear()
+	slot_profiles.clear()
 	for item in items:
 		slot_names[int(item.get("slot",0))] = str(item.get("name",""))
+		slot_profiles[int(item.get("slot",0))] = item
 	if slot_names.is_empty() and not legacy.is_empty(): slot_names[0] = legacy
 	selection = CenterContainer.new()
 	add_child(selection)
@@ -310,6 +313,13 @@ func show_selection(items: Array, legacy: String):
 		slots.add_item("%d  •  %s" % [i+1,slot_names.get(i,"Criar personagem")],i)
 	v.add_child(slots)
 	character = field(v,"Nome do novo personagem")
+	var classes := OptionButton.new()
+	for cl in ["Guerreiro","Shura","Ninja","Xamã"]: classes.add_item(cl)
+	v.add_child(classes)
+	var genders := OptionButton.new()
+	genders.add_item("Masculino")
+	genders.add_item("Feminino")
+	v.add_child(genders)
 	var preview := Label.new()
 	preview.text = "Aventureiro • Campo inicial"
 	v.add_child(preview)
@@ -317,6 +327,11 @@ func show_selection(items: Array, legacy: String):
 		selected_slot = index
 		character.text = str(slot_names.get(index,""))
 		character.editable = not slot_names.has(index)
+		var profile: Dictionary = slot_profiles.get(index,{})
+		classes.select(maxi(0,["Guerreiro","Shura","Ninja","Xamã"].find(profile.get("class","Guerreiro"))))
+		genders.select(1 if profile.get("gender","Masculino") == "Feminino" else 0)
+		classes.disabled = slot_names.has(index)
+		genders.disabled = slot_names.has(index)
 		preview.text = "Aventureiro • "+character.text if slot_names.has(index) else "Novo aventureiro"
 	slots.item_selected.connect(choose)
 	choose.call(0)
@@ -324,7 +339,7 @@ func show_selection(items: Array, legacy: String):
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges()}))
+		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":classes.get_item_text(classes.selected),"gender":genders.get_item_text(genders.selected)}))
 	button(v,"Voltar",func():
 		token = ""
 		selection.queue_free()
