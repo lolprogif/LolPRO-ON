@@ -126,6 +126,9 @@ func _unhandled_input(event):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 func _physics_process(delta):
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	if is_instance_valid(net) and net.cloud_active and net.health <= 0:
+		player.velocity = Vector3.ZERO
+		return
 	if get_viewport().gui_get_focus_owner() is LineEdit:
 		return
 	var direction := Vector3(float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A)),0,float(Input.is_physical_key_pressed(KEY_S))-float(Input.is_physical_key_pressed(KEY_W)))
@@ -177,7 +180,17 @@ func remove_horizontal_motion(ap: AnimationPlayer, clip: String, lock_vertical: 
 func attack():
 	if attack_cooldown > 0.0 or get_viewport().gui_get_focus_owner() is LineEdit:
 		return
+	if is_instance_valid(net) and net.cloud_active and net.health <= 0: return
 	attack_cooldown = 0.6
+	if is_instance_valid(net): net.request_attack()
+	attack_effect(player)
+	for target in get_tree().get_nodes_in_group("attackable"):
+		if target is Node3D and target.has_method("take_damage"):
+			var offset: Vector3 = target.global_position - player.global_position
+			if offset.length() <= 2.0 and offset.normalized().dot(player.global_transform.basis.z.normalized()) > 0.3:
+				target.take_damage(10)
+
+func attack_effect(actor: Node3D):
 	var effect := MeshInstance3D.new()
 	var slash := BoxMesh.new()
 	slash.size = Vector3(1.6,0.07,0.15)
@@ -186,13 +199,8 @@ func attack():
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_color = Color(1.0,0.8,0.25)
 	effect.material_override = material
-	player.add_child(effect)
+	actor.add_child(effect)
 	effect.position = Vector3(0,1.1,1.0)
 	var tween := create_tween()
 	tween.tween_property(effect,"rotation:y",1.8,0.18).from(-1.8)
 	tween.tween_callback(effect.queue_free)
-	for target in get_tree().get_nodes_in_group("attackable"):
-		if target is Node3D and target.has_method("take_damage"):
-			var offset: Vector3 = target.global_position - player.global_position
-			if offset.length() <= 2.0 and offset.normalized().dot(player.global_transform.basis.z.normalized()) > 0.3:
-				target.take_damage(10)
