@@ -60,26 +60,6 @@ func _ready():
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	# Arte oficial de fantasia como fundo integral da tela de login.
-
-	var layout := HBoxContainer.new()
-	login_layout = layout
-	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	layout.add_theme_constant_override("separation", 0)
-	add_child(layout)
-
-	var hero := PanelContainer.new()
-	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero.size_flags_stretch_ratio = 1.15
-	var hero_style := StyleBoxFlat.new()
-	hero_style.bg_color = Color(0.04, 0.09, 0.13, 0.28)
-	hero_style.content_margin_left = 48
-	hero_style.content_margin_right = 48
-	hero_style.content_margin_top = 40
-	hero_style.content_margin_bottom = 40
-	hero.add_theme_stylebox_override("panel", hero_style)
-	layout.add_child(hero)
-
 	var wallpaper := TextureRect.new()
 	wallpaper.name = "LoginWallpaper"
 	wallpaper.texture = load("res://assets/login_background.jpg")
@@ -87,17 +67,24 @@ func _ready():
 	wallpaper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	wallpaper.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	wallpaper.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hero.add_child(wallpaper)
-	hero.move_child(wallpaper, 0)
-
-	# A arte já contém o logotipo e a chamada visual. Recorta a faixa direita
-	# que traz um formulário ilustrativo embutido, evitando duplicar a tela real.
+	add_child(wallpaper)
 	if wallpaper.texture != null:
 		var source_size := wallpaper.texture.get_size()
 		var artwork := AtlasTexture.new()
 		artwork.atlas = wallpaper.texture
 		artwork.region = Rect2(Vector2.ZERO, Vector2(source_size.x * 0.68, source_size.y))
 		wallpaper.texture = artwork
+	var layout := HBoxContainer.new()
+	login_layout = layout
+	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.offset_bottom = -64
+	layout.add_theme_constant_override("separation", 0)
+	add_child(layout)
+	var hero := Control.new()
+	hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero.size_flags_stretch_ratio = 1.35
+	layout.add_child(hero)
 	login_center = CenterContainer.new()
 	login_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	login_center.size_flags_stretch_ratio = 0.85
@@ -106,9 +93,9 @@ func _ready():
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(380, 0)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("101b25")
+	style.bg_color = Color(0.025, 0.06, 0.11, 0.94)
 	style.border_color = Color("b69a60")
-	style.set_border_width_all(1)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(12)
 	style.content_margin_left = 28
 	style.content_margin_right = 28
@@ -153,6 +140,16 @@ func _ready():
 	var enter_button := Button.new()
 	enter_button.text = "ENTRAR"
 	enter_button.custom_minimum_size.y = 44
+	var blue := StyleBoxFlat.new()
+	blue.bg_color = Color("0754ad")
+	blue.border_color = Color("e6c478")
+	blue.set_border_width_all(2)
+	blue.set_corner_radius_all(8)
+	enter_button.add_theme_stylebox_override("normal", blue)
+	var hover := blue.duplicate() as StyleBoxFlat
+	hover.bg_color = Color("087ee5")
+	enter_button.add_theme_stylebox_override("hover", hover)
+	enter_button.add_theme_stylebox_override("pressed", blue)
 	v.add_child(enter_button)
 	enter_button.pressed.connect(func(): send("login", {"username": user.text, "password": password.text}))
 
@@ -177,7 +174,12 @@ func _ready():
 	update_button.pressed.connect(check_for_updates)
 	update_progress_box = VBoxContainer.new()
 	update_progress_box.visible = false
-	v.add_child(update_progress_box)
+	add_child(update_progress_box)
+	update_progress_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	update_progress_box.offset_left = 24
+	update_progress_box.offset_right = -24
+	update_progress_box.offset_top = -58
+	update_progress_box.offset_bottom = -12
 	update_progress_label = Label.new()
 	update_progress_label.text = "Preparando atualização... 0%"
 	update_progress_box.add_child(update_progress_label)
@@ -186,6 +188,10 @@ func _ready():
 	progress.max_value = 100
 	progress.value = 0
 	progress.show_percentage = true
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color("00aaff")
+	fill.set_corner_radius_all(6)
+	progress.add_theme_stylebox_override("fill", fill)
 	update_progress_box.add_child(progress)
 
 	var download_button := Button.new()
@@ -436,6 +442,8 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 
 func show_selection(items: Array, legacy: String):
 	login_layout.hide()
+	get_node("LoginWallpaper").hide()
+	update_progress_box.hide()
 	slot_names.clear()
 	slot_profiles.clear()
 	for item in items:
@@ -503,6 +511,8 @@ func show_selection(items: Array, legacy: String):
 		token = ""
 		selection.queue_free()
 		login_layout.show()
+		get_node("LoginWallpaper").show()
+		update_progress_box.visible = update_download_active
 		status = login_center.find_child("LoginStatus",true,false) as Label
 		if status: status.text = "Entre com sua conta.")
 	status = Label.new()
