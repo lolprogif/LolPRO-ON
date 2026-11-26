@@ -32,6 +32,18 @@ jobs:
           New-Item -ItemType Directory -Force "$env:APPDATA/Godot/export_templates/$version.stable" | Out-Null
           Copy-Item "templates/templates/*" "$env:APPDATA/Godot/export_templates/$version.stable" -Recurse -Force
           "GODOT_EXE=$godot" >> $env:GITHUB_ENV
+      - name: Definir versão do jogo
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if ($env:EVENT_NAME -eq "workflow_dispatch") { $v = $env:INPUT_VERSION } else { $v = $env:REF_NAME.TrimStart("v") }
+          $path = "login.gd"
+          $text = Get-Content $path -Raw
+          $text = [regex]::Replace($text, 'const CURRENT_GAME_VERSION := "[^"]+"', ('const CURRENT_GAME_VERSION := "' + $v + '"'))
+          Set-Content -Path $path -Value $text -NoNewline
       - name: Importar e exportar
         shell: pwsh
         run: |
@@ -122,13 +134,17 @@ jobs:
           python3 - <<'PY'
           import os,re
           v=os.environ["VERSION"]
-          nums=[int(x) for x in re.findall(r"\\d+",v)]
+          nums=[int(x) for x in re.findall(r"\d+",v)]
           if not nums: raise SystemExit("Versão inválida")
           code=nums[0]*10000+(nums[1] if len(nums)>1 else 0)*100+(nums[2] if len(nums)>2 else 0)
           p="export_presets.cfg"; s=open(p,encoding="utf-8").read()
-          s=re.sub(r'version/code=\\d+',f'version/code={code}',s, count=1)
+          s=re.sub(r'version/code=\d+',f'version/code={code}',s, count=1)
           s=re.sub(r'version/name="[^"]+"',f'version/name="{v}"',s, count=1)
           open(p,"w",encoding="utf-8").write(s)
+          login="login.gd"
+          text=open(login,encoding="utf-8").read()
+          text=re.sub(r'const CURRENT_GAME_VERSION := "[^"]+"',f'const CURRENT_GAME_VERSION := "{v}"',text)
+          open(login,"w",encoding="utf-8").write(text)
           PY
       - name: Importar e exportar APK assinado
         run: |
