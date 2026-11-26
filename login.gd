@@ -34,6 +34,7 @@ var loading_label: Label
 var fade: ColorRect
 var preview_class := 0
 var preview_gender := 0
+var preview_avatar := "whiteclown"
 var preview_stage: Node3D
 var preview_actor: Node3D
 var preview_camera: Camera3D
@@ -455,6 +456,7 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().set_meta("online_token",token)
 		get_tree().set_meta("hud_profile",user.text.strip_edges().to_lower())
+		get_tree().set_meta("selected_avatar",preview_avatar)
 		start_loading()
 
 func show_selection(items: Array, legacy: String):
@@ -483,34 +485,40 @@ func show_selection(items: Array, legacy: String):
 		slots.add_item("%d  •  %s" % [i+1,slot_names.get(i,"Criar personagem")],i)
 	v.add_child(slots)
 	character = field(v,"Nome do novo personagem")
-	var genders := OptionButton.new()
-	genders.add_item("Masculino")
-	genders.add_item("Feminino")
-	v.add_child(genders)
+	var avatars := OptionButton.new()
+	avatars.add_item("Whiteclown • Masculino",0)
+	avatars.add_item("Erika Archer • Feminino",1)
+	avatars.add_item("Maria • Feminino",2)
+	v.add_child(avatars)
 	var preview := Label.new()
-	preview.text = "Aventureiro • Campo inicial"
+	preview.text = "Escolha a aparência do personagem"
 	v.add_child(preview)
 	var choose := func(index: int):
 		selected_slot = index
 		character.text = str(slot_names.get(index,""))
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
-		genders.select(1 if profile.get("gender","Masculino") == "Feminino" else 0)
-		genders.disabled = slot_names.has(index)
-		preview_class = 0
-		preview_gender = genders.selected
+		var saved_avatar := str(profile.get("avatar","whiteclown"))
+		var avatar_index := {"whiteclown":0,"erika_archer":1,"maria":2}.get(saved_avatar,0)
+		avatars.select(avatar_index)
+		avatars.disabled = slot_names.has(index)
+		preview_avatar = saved_avatar
+		preview_gender = 0 if avatar_index == 0 else 1
 		play_preview("Idle")
-		preview.text = "Aventureiro • "+character.text if slot_names.has(index) else "Novo aventureiro"
+		preview.text = str(avatars.get_item_text(avatars.selected))+" • "+character.text if slot_names.has(index) else "Novo aventureiro"
 	slots.item_selected.connect(choose)
-	genders.item_selected.connect(func(index: int):
-		preview_gender = index
-		play_preview("Idle"))
+	avatars.item_selected.connect(func(index: int):
+		preview_avatar = ["whiteclown","erika_archer","maria"][index]
+		preview_gender = 0 if index == 0 else 1
+		play_preview("Idle")
+		preview.text = avatars.get_item_text(index))
 	choose.call(0)
 	button(v,"Entrar no mundo",func():
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":genders.get_item_text(genders.selected)}))
+		var avatar_id := ["whiteclown","erika_archer","maria"][avatars.selected]
+		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Masculino" if avatar_id == "whiteclown" else "Feminino","avatar":avatar_id}))
 	button(v,"Voltar",func():
 		token = ""
 		selection.queue_free()
@@ -610,22 +618,17 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String):
-	var scene = load("res://assets/"+state+".fbx")
-	if not scene is PackedScene: return
+	var model_file := {"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx")
+	var scene = load("res://assets/"+model_file)
+	if not scene is PackedScene:
+		push_warning("Modelo de personagem não importado: "+model_file)
+		return
 	if is_instance_valid(preview_actor): preview_actor.queue_free()
 	preview_actor = scene.instantiate() as Node3D
 	preview_stage.add_child(preview_actor)
-	preview_actor.scale = Vector3(0.86,0.94,0.86) if preview_gender == 1 else Vector3.ONE
-	var palette := [Color("a5a9b5"),Color("263a49")]
-	for mesh_node in preview_actor.find_children("*","MeshInstance3D",true,false):
-		var mesh_instance := mesh_node as MeshInstance3D
-		var material := StandardMaterial3D.new()
-		material.albedo_color = palette[preview_class]
-		material.metallic = 0.55 if preview_class < 2 else 0.15
-		mesh_instance.material_override = material
 	for node in preview_actor.find_children("*","AnimationPlayer",true,false):
 		var ap: AnimationPlayer = node
 		for clip in ap.get_animation_list():
 			if clip == "RESET": continue
-			ap.play(clip,-1,0.65 if state == "Walking" else 1.0)
+			ap.play(clip)
 			break
