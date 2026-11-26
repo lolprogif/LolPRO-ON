@@ -20,9 +20,24 @@ try {
   $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
   $principal = [Security.Principal.WindowsPrincipal]::new($identity)
   if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $args = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $PSCommandPath,
-      "-ZipUrl", $ZipUrl, "-ZipPath", $ZipPath, "-InstallDir", $InstallDir, "-ExeName", $ExeName)
-    $elevated = Start-Process -FilePath "powershell.exe" -ArgumentList $args -Verb RunAs -PassThru
+    # Start-Process rejeita itens vazios em ArgumentList. ZipUrl e ZipPath
+    # são opcionais: só os encaminha quando têm valor.
+    $elevatedArgs = @(
+      "-NoProfile",
+      "-ExecutionPolicy", "Bypass",
+      "-File", ('"{0}"' -f $PSCommandPath)
+    )
+    if (-not [string]::IsNullOrWhiteSpace($ZipUrl)) {
+      $elevatedArgs += @("-ZipUrl", ('"{0}"' -f $ZipUrl))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ZipPath)) {
+      $elevatedArgs += @("-ZipPath", ('"{0}"' -f $ZipPath))
+    }
+    $elevatedArgs += @(
+      "-InstallDir", ('"{0}"' -f $InstallDir),
+      "-ExeName", ('"{0}"' -f $ExeName)
+    )
+    $elevated = Start-Process -FilePath "powershell.exe" -ArgumentList $elevatedArgs -Verb RunAs -PassThru
     exit 0
   }
 
