@@ -24,7 +24,8 @@ func _ready():
 	address.placeholder_text = "IP do computador anfitrião"
 	address.text = "127.0.0.1"
 	panel.add_child(address)
-	hud.button(panel,"Hospedar (UDP 7000)",host)
+	if not get_tree().has_meta("online_endpoint"):
+		hud.button(panel,"Hospedar (UDP 7000)",host)
 	hud.button(panel,"Conectar",join)
 	hud.button(panel,"Desconectar",leave)
 	var layer := CanvasLayer.new()
@@ -39,10 +40,14 @@ func _ready():
 		var controls = preload("res://touch.gd").new()
 		controls.world = world
 		layer.add_child(controls)
-	if get_tree().has_meta("online_endpoint") and get_tree().has_meta("online_token"):
+	if get_tree().has_meta("online_endpoint"):
 		cloud_url = str(get_tree().get_meta("online_endpoint")).trim_suffix("/")
-		cloud_token = str(get_tree().get_meta("online_token"))
+		cloud_token = str(get_tree().get_meta("online_token",""))
 		address.text = cloud_url
+		address.editable = false
+		if cloud_token.is_empty():
+			status.text = "Sessão ausente. Feche o jogo e entre novamente."
+			return
 		cloud_active = true
 		status.text = "Conectando ao mundo online..."
 
@@ -61,6 +66,9 @@ func host():
 func join():
 	leave()
 	if not cloud_url.is_empty():
+		if cloud_token.is_empty():
+			status.text = "Sessão ausente. Entre novamente."
+			return
 		cloud_active = true
 		status.text = "Conectando ao mundo online..."
 		return
@@ -148,7 +156,7 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 func cloud_done(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
 	if not cloud_active: return
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		status.text = "Mundo online indisponível. Tentando novamente..."
+		status.text = "HTTPS: erro %d / HTTP %d. Reconectando..." % [result,code]
 		return
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if not data is Dictionary or not data.get("ok",false):
@@ -162,4 +170,4 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"]))
 	for id in remotes.keys():
 		if not seen.has(id): remove_remote(id)
-	status.text = "Online • %d jogador(es)" % (seen.size()+1)
+	status.text = "Online HTTPS • %d jogador(es)" % (seen.size()+1)
