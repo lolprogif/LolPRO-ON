@@ -416,10 +416,21 @@ func create_valoria():
 	for i in range(6):
 		map_box("RoadTile", Vector3(0,0.015,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
 	# Entrance stairs.
+	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
 	for i in range(5):
-		map_box("TempleStep", Vector3(0,0.22+float(i)*0.24,-26.0-float(i)*0.72), Vector3(13.0-float(i)*0.8,0.42,2.0), dark_stone)
+		map_box("TempleStep", Vector3(0,0.11+float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
+	var ramp_body := StaticBody3D.new()
+	ramp_body.name = "TempleAccessRamp"
+	ramp_body.position = Vector3(0,0.55,-29.5)
+	ramp_body.rotation.x = atan(1.1/6.0)
+	var ramp_collision := CollisionShape3D.new()
+	var ramp_shape := BoxShape3D.new()
+	ramp_shape.size = Vector3(12.0,0.22,6.0)
+	ramp_collision.shape = ramp_shape
+	ramp_body.add_child(ramp_collision)
+	add_child(ramp_body)
 	# Main temple platform, columns and walls.
-	map_box("TempleFoundation", Vector3(0,1.45,-34), Vector3(22,1.1,15), dark_stone)
+	map_box("TempleFoundation", Vector3(0,0.55,-34), Vector3(22,1.1,15), dark_stone)
 	map_box("TempleBackWall", Vector3(0,5.1,-40.5), Vector3(19,7.0,1.0), wood)
 	map_box("TempleLeftWall", Vector3(-9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
 	map_box("TempleRightWall", Vector3(9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
