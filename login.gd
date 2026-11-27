@@ -595,7 +595,7 @@ func show_selection(items: Array, legacy: String):
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
 		var saved_avatar := str(profile.get("avatar","whiteclown"))
-		var avatar_index := {"whiteclown":0,"erika_archer":1,"maria":2}.get(saved_avatar,0)
+		var avatar_index: int = int({"whiteclown":0,"erika_archer":1,"maria":2}.get(saved_avatar,0))
 		avatars.select(avatar_index)
 		avatars.disabled = slot_names.has(index)
 		preview_avatar = saved_avatar
@@ -753,7 +753,7 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String):
-	var model_file := {"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx")
+	var model_file: String = str({"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
 	var scene = load("res://assets/"+model_file)
 	if not scene is PackedScene:
 		push_warning("Modelo de personagem não importado: "+model_file)
