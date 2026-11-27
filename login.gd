@@ -725,6 +725,20 @@ func build_preview(parent: VBoxContainer):
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	container.stretch = true
 	parent.add_child(container)
+	container.gui_input.connect(rotate_preview_input)
+	var rotation_controls := HBoxContainer.new()
+	rotation_controls.alignment = BoxContainer.ALIGNMENT_CENTER
+	parent.add_child(rotation_controls)
+	for step in [-45.0,45.0]:
+		var rotate_button := Button.new()
+		rotate_button.text = "Girar esquerda" if step < 0 else "Girar direita"
+		rotation_controls.add_child(rotate_button)
+		rotate_button.pressed.connect(rotate_preview.bind(step))
+	var reset_button := Button.new()
+	reset_button.text = "Frente"
+	rotation_controls.add_child(reset_button)
+	reset_button.pressed.connect(func():
+		if is_instance_valid(preview_actor): preview_actor.rotation.y = 0.0)
 	var viewport := SubViewport.new()
 	viewport.own_world_3d = true
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -772,3 +786,13 @@ func play_preview(state: String):
 			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 			ap.play(clip)
 			break
+
+func rotate_preview(degrees: float):
+	if is_instance_valid(preview_actor):
+		preview_actor.rotate_y(deg_to_rad(degrees))
+
+func rotate_preview_input(event: InputEvent):
+	if event is InputEventScreenDrag:
+		rotate_preview(event.relative.x * 0.5)
+	elif event is InputEventMouseMotion and not OS.has_feature("mobile") and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+		rotate_preview(event.relative.x * 0.5)
