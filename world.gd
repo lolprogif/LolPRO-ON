@@ -314,6 +314,7 @@ func attack():
 			admin_animation_until = 0
 			if current == attack_state:
 				animate("Idle")
+		)
 	attack_effect(player)
 	for target in get_tree().get_nodes_in_group("attackable"):
 		if target is Node3D and target.has_method("take_damage"):
