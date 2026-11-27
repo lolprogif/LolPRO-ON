@@ -118,6 +118,21 @@ func _ready():
 	map_button.offset_top = 182
 	map_button.offset_bottom = 214
 
+	# Full-width bottom strip, with the original 850px controls kept centered.
+	var full_width_bar := TextureRect.new()
+	root.add_child(full_width_bar)
+	full_width_bar.texture = load("res://taskbar/taskbar_base.png") as Texture2D
+	full_width_bar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	full_width_bar.stretch_mode = TextureRect.STRETCH_SCALE
+	full_width_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	full_width_bar.anchor_left = 0.0
+	full_width_bar.anchor_right = 1.0
+	full_width_bar.anchor_top = 1.0
+	full_width_bar.anchor_bottom = 1.0
+	full_width_bar.offset_top = -35.0
+	full_width_bar.offset_bottom = 0.0
+	full_width_bar.z_index = -1
+
 	# Rebuilt from Merlis2 taskbar.py: left gauges, central quickbar, right menu.
 	var bottom := Control.new()
 	root.add_child(bottom)
@@ -130,7 +145,6 @@ func _ready():
 		bottom.position = Vector2((root.size.x-850.0*factor)/2.0,root.size.y-84.0*factor)
 	root.resized.connect(fit_dock)
 	fit_dock.call()
-	merlis_image(bottom,"res://taskbar/taskbar_base.png",Vector2(0,49),Vector2(850,35))
 	merlis_image(bottom,"res://taskbar/taskbar_left.png",Vector2(0,20),Vector2(237,64))
 	merlis_image(bottom,"res://taskbar/taskbar_center.png",Vector2(237,25),Vector2(411,59))
 	hp_bar = bar(bottom,hp,Color("d04455"))
@@ -191,6 +205,7 @@ func _ready():
 	attack_button.offset_top = -140
 	attack_button.offset_bottom = -92
 	attack_button.pressed.connect(func(): world.attack())
+	attack_button.visible = not OS.has_feature("mobile")
 
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
 	cp.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
