@@ -137,9 +137,18 @@ func _ready():
 	v.add_child(show_password)
 
 	remember_user = CheckBox.new()
-	remember_user.text = "Lembrar meu usuário neste dispositivo"
+	remember_user.text = "Lembrar meu usuário e senha neste dispositivo"
 	remember_user.button_pressed = bool(settings.get_value("login", "remember_user", true))
 	v.add_child(remember_user)
+	if remember_user.button_pressed:
+		var saved := ConfigFile.new()
+		if saved.load_encrypted_pass("user://login_secret.cfg", login_storage_key()) == OK:
+			if str(saved.get_value("login","username","")) == user.text:
+				password.text = str(saved.get_value("login","password",""))
+	remember_user.toggled.connect(func(enabled: bool):
+		if not enabled:
+			clear_saved_login()
+	)
 
 	var enter_button := Button.new()
 	enter_button.text = "ENTRAR"
@@ -435,7 +444,14 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		settings.set_value("login","remember_user",remember_user.button_pressed)
 		settings.set_value("login","username",user.text if remember_user.button_pressed else "")
 		settings.save("user://login.cfg")
-		password.clear()
+		if remember_user.button_pressed:
+			var saved := ConfigFile.new()
+			saved.set_value("login","username",user.text)
+			saved.set_value("login","password",password.text)
+			if saved.save_encrypted_pass("user://login_secret.cfg",login_storage_key()) != OK:
+				push_warning("Não foi possível salvar a senha neste dispositivo.")
+		else:
+			clear_saved_login()
 		show_selection(d.get("characters",[]),str(d.get("character","")))
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
@@ -797,3 +813,13 @@ func rotate_preview_input(event: InputEvent):
 		rotate_preview(event.relative.x * 0.5)
 	elif event is InputEventMouseMotion and not OS.has_feature("mobile") and (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
 		rotate_preview(event.relative.x * 0.5)
+
+func login_storage_key() -> String:
+	return ("LolPRO-ON:local-login:v1:" + OS.get_unique_id()).sha256_text()
+
+func clear_saved_login():
+	if FileAccess.file_exists("user://login_secret.cfg"):
+		DirAccess.remove_absolute("user://login_secret.cfg")
+	settings.set_value("login","remember_user",false)
+	settings.set_value("login","username","")
+	settings.save("user://login.cfg")
