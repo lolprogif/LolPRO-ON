@@ -630,9 +630,11 @@ func show_selection(items: Array, legacy: String):
 	stage_box.add_child(stage_caption)
 	build_preview(stage_box)
 
+	var delete_button: Button
 	var choose := func(index: int):
 		selected_slot = index
 		character.text = str(slot_names.get(index,""))
+		if is_instance_valid(delete_button): delete_button.disabled = not slot_names.has(index)
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
 		var saved_avatar := str(profile.get("avatar","whiteclown"))
@@ -683,7 +685,7 @@ func show_selection(items: Array, legacy: String):
 		if status:
 			status.text = "Entre com sua conta.")
 	actions.add_child(back)
-	var delete_button := Button.new()
+	delete_button = Button.new()
 	delete_button.text = "APAGAR PERSONAGEM"
 	delete_button.custom_minimum_size = Vector2(190,42)
 	delete_button.disabled = not slot_names.has(selected_slot)
