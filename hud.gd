@@ -62,13 +62,20 @@ func _ready():
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	theme_rpg.set_stylebox("panel", "PanelContainer", style(Color("101722ee"),Color("b99a58")))
-	for state in ["normal","hover","pressed","focus"]:
-		theme_rpg.set_stylebox(state,"Button",style(Color("202b39ee") if state == "normal" else Color("59472c"),Color("c4a15d")))
-	theme_rpg.set_color("font_color","Button",Color("f4dfb1"))
-	theme_rpg.set_color("font_color","Label",Color("f5e6c8"))
-	theme_rpg.set_stylebox("background","ProgressBar",style(Color("090d15"),Color("665537")))
+	theme_rpg = preload("res://classic_rpg_theme.tres").duplicate() as Theme
+	for state in ["normal","hover","pressed","disabled","focus"]:
+		var sb := theme_rpg.get_stylebox(state,"Button").duplicate() as StyleBox
+		for side in [SIDE_LEFT,SIDE_RIGHT,SIDE_TOP,SIDE_BOTTOM]:
+			sb.set_content_margin(side,4.0)
+		theme_rpg.set_stylebox(state,"Button",sb)
+	var panel_style := theme_rpg.get_stylebox("panel","PanelContainer").duplicate() as StyleBox
+	for side in [SIDE_LEFT,SIDE_RIGHT,SIDE_TOP,SIDE_BOTTOM]:
+		panel_style.set_content_margin(side,4.0)
+	theme_rpg.set_stylebox("panel","PanelContainer",panel_style)
 	theme_rpg.default_font_size = 13
+	if not OS.has_feature("mobile"):
+		Input.set_custom_mouse_cursor(preload("res://png/cursors/cursors/cursor_gauntlet.png"),Input.CURSOR_ARROW,Vector2.ZERO)
+		Input.set_custom_mouse_cursor(preload("res://png/cursors/cursors/cursor_interact.png"),Input.CURSOR_POINTING_HAND,Vector2.ZERO)
 	root.theme = theme_rpg
 
 	# Compact character identity at the top-left; combat status lives in the bottom HUD.
@@ -103,30 +110,26 @@ func _ready():
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_left = 8
 	bottom.offset_right = -8
-	bottom.offset_top = -132
+	bottom.offset_top = -86
 	bottom.offset_bottom = -8
 	var dock := HBoxContainer.new()
 	dock.add_theme_constant_override("separation",8)
 	bottom.add_child(dock)
 
 	var vitals := PanelContainer.new()
-	vitals.custom_minimum_size = Vector2(214,112)
+	vitals.custom_minimum_size = Vector2(140,70)
 	dock.add_child(vitals)
 	var stats := VBoxContainer.new()
 	stats.add_theme_constant_override("separation",2)
 	vitals.add_child(stats)
-	var vitals_title := label(stats,"AVENTUREIRO  •  Nv. 1")
-	vitals_title.add_theme_font_size_override("font_size",11)
-	label(stats,"VIDA")
 	hp_bar = bar(stats,hp,Color("d04455"))
-	label(stats,"MANA")
 	mana_bar = bar(stats,100,Color("428bd8"))
 	xp_bar = bar(stats,0,Color("d9b45d"))
 	wallet_label = label(stats,"100 moedas  •  5 poções")
 
 	var skill_panel := PanelContainer.new()
 	skill_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	skill_panel.custom_minimum_size.x = 270
+	skill_panel.custom_minimum_size.x = 150
 	dock.add_child(skill_panel)
 	var skills := HBoxContainer.new()
 	skills.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -136,8 +139,11 @@ func _ready():
 		var slot := Button.new()
 		slot.text = str(i+1)
 		slot.tooltip_text = "Habilidade %d" % (i+1)
-		slot.custom_minimum_size = Vector2(40,56)
+		slot.custom_minimum_size = Vector2(24,32)
 		slot.focus_mode = Control.FOCUS_NONE
+		var slot_style := StyleBoxTexture.new()
+		slot_style.texture = preload("res://png/slots_inventory/slot_normal.png")
+		slot.add_theme_stylebox_override("normal",slot_style)
 		skills.add_child(slot)
 
 	var menu_panel := PanelContainer.new()
@@ -160,7 +166,7 @@ func _ready():
 				toggle(n)
 		var b := button(menu,glyph,action)
 		b.tooltip_text = n
-		b.custom_minimum_size = Vector2(32,54)
+		b.custom_minimum_size = Vector2(24,32)
 
 	var attack_button := Button.new()
 	attack_button.text = "⚔ ATACAR" if OS.has_feature("mobile") else "⚔ ATACAR"
@@ -170,8 +176,8 @@ func _ready():
 	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	attack_button.offset_left = -148
 	attack_button.offset_right = -12
-	attack_button.offset_top = -158
-	attack_button.offset_bottom = -108
+	attack_button.offset_top = -140
+	attack_button.offset_bottom = -92
 	attack_button.pressed.connect(func(): world.attack())
 
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
@@ -307,10 +313,18 @@ func button(parent: Node, value: String, action: Callable) -> Button:
 	return b
 func bar(parent: Node, value: int, color: Color) -> ProgressBar:
 	var b := ProgressBar.new()
-	b.custom_minimum_size = Vector2(150,14)
+	b.custom_minimum_size = Vector2(110,12)
 	b.show_percentage = false
 	b.value = value
-	b.add_theme_stylebox_override("fill",style(color,color))
+	var texture_path := "res://png/hud_bars_globes/bar_fill_health.png"
+	if color == Color("428bd8"):
+		texture_path = "res://png/hud_bars_globes/bar_fill_mana.png"
+	elif color == Color("d9b45d"):
+		texture_path = "res://png/hud_bars_globes/bar_fill_xp.png"
+	var fill := StyleBoxTexture.new()
+	fill.texture = load(texture_path) as Texture2D
+	b.add_theme_stylebox_override("fill",fill)
+	b.tooltip_text = "Vida" if color == Color("d04455") else ("Mana" if color == Color("428bd8") else "Experiência")
 	parent.add_child(b)
 	return b
 func window(n: String, sz: Vector2, right := false) -> VBoxContainer:
