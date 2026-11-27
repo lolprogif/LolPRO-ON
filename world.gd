@@ -193,8 +193,9 @@ func animate(state):
 				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				ap.play(desired)
 		return
-	# Keep the selected skin during physics-driven jumps.
 	if state == "Jumping" and models.has("Idle"):
+		if play_jump_on_selected_model():
+			return
 		state = "Idle"
 	if using_brute and not models.has(state):
 		if not ensure_brute_motion(state):
@@ -212,13 +213,75 @@ func animate(state):
 	if not anim.is_empty():
 		var ap: AnimationPlayer = anim[0]
 		for clip in ap.get_animation_list():
-			if clip != "RESET":
+			if clip != "RESET" and clip != "jump_transfer/Jump":
 				var one_shot: bool = state == "Jumping" or state == "Attack1" or state == "Attack2"
 				ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if one_shot else Animation.LOOP_LINEAR
 				remove_horizontal_motion(ap, clip, state == "Jumping")
 				ap.stop()
 				ap.play(clip)
 				break
+# Copy only compatible skeletal rotation tracks; never display the source mesh.
+func play_jump_on_selected_model() -> bool:
+	var actor: Node3D = models["Idle"]
+	var players := actor.find_children("*", "AnimationPlayer", true, false)
+	var skeletons := actor.find_children("*", "Skeleton3D", true, false)
+	if players.is_empty() or skeletons.is_empty():
+		return false
+	var ap: AnimationPlayer = players[0]
+	var target: Skeleton3D = skeletons[0]
+	var clip_name := "jump_transfer/Jump"
+	if not ap.has_animation(clip_name):
+		var scene = load("res://assets/Jumping.fbx")
+		if not scene is PackedScene:
+			return false
+		var source: Node = scene.instantiate()
+		var source_players := source.find_children("*", "AnimationPlayer", true, false)
+		if source_players.is_empty():
+			source.free()
+			return false
+		var source_ap: AnimationPlayer = source_players[0]
+		var source_clip: Animation = null
+		for name in source_ap.get_animation_list():
+			if name != "RESET":
+				source_clip = source_ap.get_animation(name)
+				break
+		if source_clip == null:
+			source.free()
+			return false
+		var root: Node = ap.get_node_or_null(ap.root_node)
+		if root == null:
+			source.free()
+			return false
+		var transferred := Animation.new()
+		transferred.length = source_clip.length
+		transferred.loop_mode = Animation.LOOP_NONE
+		for track in range(source_clip.get_track_count()):
+			if source_clip.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+				continue
+			var path := source_clip.track_get_path(track)
+			if path.get_subname_count() != 1:
+				continue
+			var bone := String(path.get_subname(0))
+			if target.find_bone(bone) == -1:
+				continue
+			var index := transferred.add_track(Animation.TYPE_ROTATION_3D)
+			transferred.track_set_path(index, NodePath(str(root.get_path_to(target)) + ":" + bone))
+			for key in range(source_clip.track_get_key_count(track)):
+				transferred.track_insert_key(index, source_clip.track_get_key_time(track, key), source_clip.track_get_key_value(track, key))
+		source.free()
+		if transferred.get_track_count() == 0:
+			push_warning("Jump animation has no compatible bones")
+			return false
+		var library := AnimationLibrary.new()
+		library.add_animation("Jump", transferred)
+		ap.add_animation_library("jump_transfer", library)
+	for key in models:
+		if models[key] is Node3D:
+			models[key].visible = key == "Idle"
+	ap.stop()
+	ap.play(clip_name, -1.0, ap.get_animation(clip_name).length / JUMP_DURATION)
+	return true
+
 func _unhandled_input(event):
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if not try_guard_click(event.position):
