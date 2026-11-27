@@ -716,6 +716,24 @@ func create_portal_guard():
 	add_child(guard)
 	guard.position = Vector3(2.0,1.1,-28.0)
 	guard.rotation.y = 0.0
+	# Relax the Mixamo T-pose using local upper-arm bone rotations.
+	for node in guard.find_children("*","Skeleton3D",true,false):
+		var skeleton := node as Skeleton3D
+		for i in range(skeleton.get_bone_count()):
+			var bone_name := skeleton.get_bone_name(i).to_lower().replace("_","")
+			if not (bone_name.ends_with("leftarm") or bone_name.ends_with("rightarm")):
+				continue
+			var rest := skeleton.get_bone_global_rest(i)
+			var direction := rest.basis.y.normalized()
+			for child in skeleton.get_bone_children(i):
+				var offset := skeleton.get_bone_global_rest(child).origin - rest.origin
+				if offset.length() > 0.001:
+					direction = offset.normalized()
+					break
+			var target := Vector3(direction.x * 0.15,-1.0,0.0).normalized()
+			var delta := Quaternion(direction,target)
+			var local_delta := rest.basis.orthonormalized().inverse() * Basis(delta) * rest.basis.orthonormalized()
+			skeleton.set_bone_pose_rotation(i,skeleton.get_bone_pose_rotation(i) * local_delta.get_rotation_quaternion())
 	var tag := Label3D.new()
 	tag.text = "Guardião do Portal"
 	tag.position.y = 2.2
