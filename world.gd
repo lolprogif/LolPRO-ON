@@ -453,6 +453,7 @@ func create_valoria():
 		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
 	# Blue walk-through portal in the original temple.
 	castle_portal(Vector3(0,3.6,-30.5),Vector3(0,0.2,70))
+	create_portal_guard()
 	for x in [-8.0,-4.0,4.0,8.0]:
 		temple_lantern(Vector3(x,3.1,-27.5))
 	for x in [-5.0,5.0]:
@@ -588,7 +589,7 @@ func castle_tower(pos: Vector3, h: float, radius: float):
 		var angle := TAU*float(i)/6.0
 		map_box("TowerTrim",pos+Vector3(cos(angle)*radius,h-0.5,sin(angle)*radius),Vector3(0.6,1.2,0.6),Color("9b9383"),false)
 
-func castle_portal(pos: Vector3, destination: Vector3):
+func castle_portal(pos: Vector3, _destination: Vector3):
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = 2.15
@@ -659,22 +660,6 @@ void fragment(){
 	arcs.material_override = arc_mat
 	add_child(arcs)
 	arcs.position = pos + Vector3(0,0,0.15)
-	var area := Area3D.new()
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(4.1,5.2,1.4)
-	shape.shape = box
-	area.add_child(shape)
-	add_child(area)
-	area.position = pos
-	area.body_entered.connect(func(body: Node3D):
-		if body != player or Time.get_ticks_msec() < portal_lock_until:
-			return
-		portal_lock_until = Time.get_ticks_msec()+2000
-		player.set_deferred("position",destination)
-		player.velocity = Vector3.ZERO
-	)
-
 func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
 	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	body.name = label
@@ -717,3 +702,22 @@ func map_fire(pos: Vector3):
 	light.light_energy = 1.5
 	light.omni_range = 8.0
 	add_child(light)
+
+func create_portal_guard():
+	var path := "res://assets/portal_guard.fbx"
+	if not ResourceLoader.exists(path):
+		return
+	var scene = load(path)
+	if not scene is PackedScene:
+		return
+	var guard := scene.instantiate() as Node3D
+	if guard == null:
+		return
+	add_child(guard)
+	guard.position = Vector3(2.0,1.1,-28.0)
+	guard.rotation.y = 0.0
+	var tag := Label3D.new()
+	tag.text = "Guardião do Portal"
+	tag.position.y = 2.2
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	guard.add_child(tag)
