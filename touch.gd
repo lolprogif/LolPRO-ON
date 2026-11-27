@@ -10,8 +10,13 @@ var settings := ConfigFile.new()
 var toolbar: HBoxContainer
 var size_slider: HSlider
 var profile := "offline"
+func is_mobile_platform() -> bool:
+	return OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile")
 func _ready():
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	set_process_input(true)
+	set_process_unhandled_input(true)
+	z_index = 100
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_to_group("mobile_hud")
 	profile = str(get_tree().get_meta("hud_profile","offline"))
@@ -92,7 +97,9 @@ func _input(event):
 				selected = hit
 				size_slider.set_value_no_signal(radii[hit])
 			elif hit == "jump": world.touch_jump = true
-			elif hit == "attack": world.attack()
+			elif hit == "attack":
+				world.attack()
+				get_viewport().set_input_as_handled()
 			elif hit == "run": world.touch_run = not world.touch_run
 			elif hit == "mic": get_tree().call_group("voice_controls","toggle_mic")
 			get_viewport().set_input_as_handled()
@@ -137,7 +144,7 @@ func _draw():
 			draw_line(p+Vector2(-r*0.23,r*0.55),p+Vector2(r*0.23,r*0.55),c,w,true)
 			if not active: draw_line(p+Vector2(-r*0.6,-r*0.6),p+Vector2(r*0.6,r*0.6),c,w,true)
 			continue
-		var caption := str({"move":"Mover","jump":"Pular","attack":"Atacar","run":"Caminhar" if world.touch_run else "Correr"}[key])
+		var caption := str({"move":"Mover","jump":"Pular","attack":"Atacar","run":"Andar" if world.touch_run else "Correr"}[key])
 		var font := ThemeDB.fallback_font
 		var fs := int(clampf(r*0.4,12,24))
 		draw_string(font,p+Vector2(-font.get_string_size(caption,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x/2,fs/3.0),caption,HORIZONTAL_ALIGNMENT_LEFT,-1,fs)
