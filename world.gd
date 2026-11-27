@@ -415,23 +415,46 @@ func create_valoria():
 	map_box("TempleRoad", Vector3(0,-0.145,-18), Vector3(12,0.3,24), dark_stone)
 	for i in range(6):
 		map_box("RoadTile", Vector3(0,0.015,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
-	# Medieval castle: walkable approach and blue gateway.
-	map_box("CastleFoundation", Vector3(0,0.5,-34), Vector3(24,1,16), dark_stone)
-	for i in range(8):
-		map_box("CastleStep", Vector3(0,0.0625+float(i)*0.125,-22.5-float(i)), Vector3(12,0.125+float(i)*0.25,1), stone, false)
-	var ramp := map_box("CastleRamp", Vector3(0,0.43,-26), Vector3(12,0.2,8), stone)
-	ramp.get_parent().rotation.x = atan(1.0/8.0)
-	ramp.hide()
-	map_box("CastleKeep", Vector3(0,9,-37), Vector3(15,16,8), stone)
-	for x in [-10.0,10.0,-5.0,5.0]:
-		var h: float = 13.0 if absf(x)>8.0 else 20.0
-		castle_tower(Vector3(x,1,-34),h,2.5 if absf(x)>8.0 else 1.8)
-	for i in range(9):
-		map_box("Battlement",Vector3(-7.0+float(i)*1.75,17.5,-33),Vector3(0.9,1.2,1),stone,false)
+	# Entrance stairs.
+	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
+	for i in range(5):
+		map_box("TempleStep", Vector3(0,0.11+float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
+	var ramp_body := StaticBody3D.new()
+	ramp_body.name = "TempleAccessRamp"
+	ramp_body.position = Vector3(0,0.55,-29.5)
+	ramp_body.rotation.x = atan(1.1/6.0)
+	var ramp_collision := CollisionShape3D.new()
+	var ramp_shape := BoxShape3D.new()
+	ramp_shape.size = Vector3(12.0,0.22,6.0)
+	ramp_collision.shape = ramp_shape
+	ramp_body.add_child(ramp_collision)
+	add_child(ramp_body)
+	# Main temple platform, columns and walls.
+	map_box("TempleFoundation", Vector3(0,0.55,-34), Vector3(22,1.1,15), dark_stone)
+	map_box("TempleBackWall", Vector3(0,5.1,-40.5), Vector3(19,7.0,1.0), wood)
+	map_box("TempleLeftWall", Vector3(-9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
+	map_box("TempleRightWall", Vector3(9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
+	for x in [-8.0,-4.0,4.0,8.0]:
+		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
+		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
+	# Blue walk-through portal in the original temple.
+	castle_portal(Vector3(0,3.6,-39.2),Vector3(0,0.2,70))
+	for x in [-8.0,-4.0,4.0,8.0]:
+		temple_lantern(Vector3(x,3.1,-27.5))
 	for x in [-5.0,5.0]:
-		map_box("Banner",Vector3(x,7,-32.85),Vector3(1.5,5,0.06),Color("173c80"),false)
-		map_box("BannerTrim",Vector3(x,4.5,-32.78),Vector3(1.5,0.12,0.08),gold,false)
-	castle_portal(Vector3(0,3.6,-32.6),Vector3(0,0.2,70))
+		temple_lantern(Vector3(x,1.8,-26.5))
+	temple_light(Vector3(0,5,-34),Color("ffd08a"),2.0,15.0)
+	temple_light(Vector3(0,4,-37),Color("399dff"),1.5,9.0)
+	# Three-tier oriental roof with raised eaves and gold ridge.
+	for tier in range(3):
+		var y := 8.0+float(tier)*2.0
+		var width := 23.0-float(tier)*3.3
+		var depth := 16.0-float(tier)*2.4
+		map_box("PagodaRoof", Vector3(0,y,-34), Vector3(width,0.55,depth), roof, false)
+		map_box("RoofGoldRidge", Vector3(0,y+0.35,-34), Vector3(width*0.52,0.12,0.22), gold, false)
+		for side in [-1.0,1.0]:
+			var eave := map_box("RaisedEave", Vector3(side*(width*0.5-0.4),y+0.45,-34), Vector3(0.65,0.7,depth), roof, false)
+			eave.rotation.z = -side*0.10
 	# Separate interior on the same map, preserving network coordinates.
 	map_box("HallFloor",Vector3(0,0.1,70),Vector3(24,0.2,24),stone)
 	for x in [-12.0,12.0]:
@@ -442,7 +465,7 @@ func create_valoria():
 		for z in [62.0,70.0,78.0]:
 			map_box("HallColumn",Vector3(x,4,z),Vector3(1.2,8,1.2),stone)
 	map_box("HallCeiling",Vector3(0,8,70),Vector3(24,0.5,24),dark_stone)
-	castle_portal(Vector3(0,2.6,80),Vector3(0,1.2,-29))
+	castle_portal(Vector3(0,2.6,80),Vector3(0,1.2,-35))
 	# Entrance gate in front of the courtyard.
 	for x in [-7.0,7.0]:
 		map_box("GatePost", Vector3(x,3.3,12.0), Vector3(1.25,6.5,1.25), red)
@@ -502,6 +525,29 @@ func castle_stone(color: Color) -> StandardMaterial3D:
 	mat.uv1_scale = Vector3(0.65,0.65,0.65)
 	castle_materials[color] = mat
 	return mat
+
+func temple_light(pos: Vector3, tint: Color, energy: float, reach: float):
+	var light := OmniLight3D.new()
+	light.light_color = tint
+	light.light_energy = energy
+	light.omni_range = reach
+	light.shadow_enabled = false
+	add_child(light)
+	light.position = pos
+
+func temple_lantern(pos: Vector3):
+	var lamp := MeshInstance3D.new()
+	var shape := BoxMesh.new()
+	shape.size = Vector3(0.35,0.55,0.35)
+	lamp.mesh = shape
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color("ffd080")
+	lamp.material_override = mat
+	add_child(lamp)
+	lamp.position = pos
+	if not OS.has_feature("mobile"):
+		temple_light(pos,Color("ffc16b"),0.65,5.0)
 
 func castle_tower(pos: Vector3, h: float, radius: float):
 	var shaft := MeshInstance3D.new()
