@@ -83,7 +83,7 @@ func _ready():
 				model.hide()
 				models[state] = model
 	else:
-		var avatar_file := {"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx")
+		var avatar_file: String = str({"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx"))
 		var avatar_scene = load("res://assets/"+avatar_file)
 		if avatar_scene is PackedScene:
 			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
