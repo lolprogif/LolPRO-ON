@@ -820,8 +820,10 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String) -> bool:
-	var model_file: String = str({"whiteclown":("Walking.fbx" if state == "Walking" else "Idle.fbx"),"sura":"Brute.fbx"}.get(preview_avatar,"Character.fbx"))
-	var custom_path: String = str({"sura":"res://assets/Brute.fbx"}.get(preview_avatar,"res://assets/"+model_file))
+	var model_file: String = "Walking.fbx" if state == "Walking" else "Idle.fbx"
+	if preview_avatar == "sura":
+		model_file = "Walking.fbx" if state == "Walking" else "Idle.fbx"
+	var custom_path: String = "res://assets/" + model_file if preview_avatar == "sura" else str("res://assets/" + model_file if preview_avatar == "whiteclown" else "res://assets/Character.fbx")
 	var scene = load(custom_path)
 	if not scene is PackedScene:
 		push_warning("Modelo de personagem não importado: "+model_file)
