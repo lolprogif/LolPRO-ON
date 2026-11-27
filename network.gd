@@ -156,7 +156,7 @@ func submit(pos: Vector3, angle: float, state: String):
 @rpc("authority","call_remote","unreliable_ordered")
 func broadcast(id: int,pos: Vector3,angle: float,state: String):
 	if id != multiplayer.get_unique_id(): update_remote(id,pos,angle,state)
-func update_remote(id,pos: Vector3,angle: float,state: String,display_name: String = ""):
+func update_remote(id,pos: Vector3,angle: float,state: String,display_name: String = "", avatar: String = "whiteclown"):
 	if not state in ["Idle","Walking","Running","Jumping"]: return
 	if not remotes.has(id):
 		var n := Node3D.new()
@@ -171,9 +171,11 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 	var r: Dictionary = remotes[id]
 	r.target = pos
 	r.angle = angle
-	if r.state == state: return
+	if r.state == state and r.get("avatar","") == avatar: return
 	if is_instance_valid(r.model): r.model.queue_free()
-	var model = load("res://assets/"+state+".fbx").instantiate()
+	var model_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb","erika_archer":"res://assets/erika_archer.fbx","maria":"res://assets/maria.fbx"}.get(avatar,"res://assets/"+state+".fbx"))
+	var model = load(model_path).instantiate()
+	r.avatar = avatar
 	r.node.add_child(model)
 	r.model = model
 	r.state = state
@@ -229,7 +231,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		var id := str(item["id"])
 		var p: Array = item["pos"]
 		seen[id] = true
-		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP")
+		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP",str(item.get("avatar","whiteclown")))
 		if remotes.has(id):
 			var node: Node3D = remotes[id].node
 			world.show_gear(node,item)
