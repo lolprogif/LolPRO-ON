@@ -1,4 +1,16 @@
 extends CanvasLayer
+class MiniMapWidget extends Control:
+	func _draw():
+		var center := size * 0.5
+		var radius := minf(size.x,size.y) * 0.47
+		draw_circle(center,radius,Color("101722ee"))
+		draw_arc(center,radius,0.0,TAU,64,Color("c4a15d"),2.0,true)
+		draw_arc(center,radius*0.72,0.0,TAU,48,Color("8d774e"),1.0,true)
+		draw_line(Vector2(center.x-radius*0.7,center.y),Vector2(center.x+radius*0.7,center.y),Color("667487"),1.0)
+		draw_line(Vector2(center.x,center.y-radius*0.7),Vector2(center.x,center.y+radius*0.7),Color("667487"),1.0)
+		draw_line(Vector2(center.x-radius*0.48,center.y+radius*0.45),Vector2(center.x+radius*0.35,center.y-radius*0.4),Color("667487"),2.0)
+		draw_circle(center,5.0,Color("f5d27c"))
+		draw_circle(center,2.0,Color("fff4d6"))
 var world: Node3D
 var root: Control
 var windows := {}
@@ -18,6 +30,7 @@ var gear_names := {"helmet":"Capacete","boots":"Botas","gloves":"Luvas","necklac
 var potions := 5
 var hp := 80
 var hp_bar: ProgressBar
+var mana_bar: ProgressBar
 var xp_bar: ProgressBar
 var wallet_label: Label
 var money: Label
@@ -49,63 +62,128 @@ func _ready():
 	add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	theme_rpg.set_stylebox("panel", "PanelContainer", style(Color("10141cdd"),Color("b69a59")))
+	theme_rpg.set_stylebox("panel", "PanelContainer", style(Color("101722ee"),Color("b99a58")))
 	for state in ["normal","hover","pressed","focus"]:
-		theme_rpg.set_stylebox(state,"Button",style(Color("202936ee") if state == "normal" else Color("59472c"),Color("b69a59")))
+		theme_rpg.set_stylebox(state,"Button",style(Color("202b39ee") if state == "normal" else Color("59472c"),Color("c4a15d")))
 	theme_rpg.set_color("font_color","Button",Color("f4dfb1"))
 	theme_rpg.set_color("font_color","Label",Color("f5e6c8"))
 	theme_rpg.set_stylebox("background","ProgressBar",style(Color("090d15"),Color("665537")))
-	theme_rpg.default_font_size = 14
+	theme_rpg.default_font_size = 13
 	root.theme = theme_rpg
-	var top := panel_at(Vector2(12,12),Vector2(220,100))
-	var t := VBoxContainer.new()
-	top.add_child(t)
-	level_label = label(t,"◆  AVENTUREIRO  |  Nv. 1")
-	label(t,"VIDA")
-	hp_bar = bar(t, hp, Color("d04455"))
-	label(t,"MANA")
-	bar(t,100,Color("428bd8"))
-	label(t,"EXPERIÊNCIA")
-	xp_bar = bar(t,0,Color("d9b45d"))
-	wallet_label = label(t,"100 moedas • 5 poções")
-	button(t,"Missões",func(): toggle("Missões"))
+
+	# Compact character identity at the top-left; combat status lives in the bottom HUD.
+	var identity := panel_at(Vector2(12,12),Vector2(190,38))
+	level_label = label(identity,"◆ AVENTUREIRO  |  Nv. 1")
+	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+	# Circular minimap with compass/grid and live player coordinates.
+	var map_widget := MiniMapWidget.new()
+	root.add_child(map_widget)
+	map_widget.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	map_widget.offset_left = -154
+	map_widget.offset_right = -12
+	map_widget.offset_top = 12
+	map_widget.offset_bottom = 154
+	coords = label(root,"X: 0  Z: 0")
+	coords.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	coords.offset_left = -154
+	coords.offset_right = -12
+	coords.offset_top = 157
+	coords.offset_bottom = 180
+	coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var map_button := button(root,"MAPA",func(): toggle("Mapa"))
+	map_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	map_button.offset_left = -124
+	map_button.offset_right = -42
+	map_button.offset_top = 182
+	map_button.offset_bottom = 214
+
+	# Bottom action dock: life/mana/EXP, skill slots, then compact menu icons.
 	var bottom := panel_at(Vector2.ZERO,Vector2.ZERO)
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_top = -60
-	var h := HBoxContainer.new()
-	bottom.add_child(h)
-	for name in ["Poção","Personagem","Inventário","Especial","Habilidades","Emoções","Missões","Amigos","Grupo","Mapa","Loja","Opções"]:
-		var n: String = name
-		button(h,n,func(): use_potion() if n == "Poção" else toggle(n))
+	bottom.offset_left = 8
+	bottom.offset_right = -8
+	bottom.offset_top = -94
+	bottom.offset_bottom = -8
+	var dock := HBoxContainer.new()
+	dock.add_theme_constant_override("separation",8)
+	bottom.add_child(dock)
+
+	var vitals := PanelContainer.new()
+	vitals.custom_minimum_size = Vector2(214,76)
+	dock.add_child(vitals)
+	var stats := VBoxContainer.new()
+	stats.add_theme_constant_override("separation",2)
+	vitals.add_child(stats)
+	var vitals_title := label(stats,"AVENTUREIRO  •  Nv. 1")
+	vitals_title.add_theme_font_size_override("font_size",11)
+	label(stats,"VIDA")
+	hp_bar = bar(stats,hp,Color("d04455"))
+	label(stats,"MANA")
+	mana_bar = bar(stats,100,Color("428bd8"))
+	xp_bar = bar(stats,0,Color("d9b45d"))
+	wallet_label = label(stats,"100 moedas  •  5 poções")
+
+	var skill_panel := PanelContainer.new()
+	skill_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skill_panel.custom_minimum_size.x = 270
+	dock.add_child(skill_panel)
+	var skills := HBoxContainer.new()
+	skills.alignment = BoxContainer.ALIGNMENT_CENTER
+	skills.add_theme_constant_override("separation",5)
+	skill_panel.add_child(skills)
+	for i in range(6):
+		var slot := Button.new()
+		slot.text = str(i+1)
+		slot.tooltip_text = "Habilidade %d" % (i+1)
+		slot.custom_minimum_size = Vector2(38,48)
+		slot.focus_mode = Control.FOCUS_NONE
+		skills.add_child(slot)
+
+	var menu_panel := PanelContainer.new()
+	dock.add_child(menu_panel)
+	var menu := HBoxContainer.new()
+	menu.add_theme_constant_override("separation",2)
+	menu_panel.add_child(menu)
+	var menu_items := [
+		["🧪","Poção"],["♟","Personagem"],["▣","Inventário"],["✦","Especial"],
+		["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"],["♧","Amigos"],
+		["◎","Grupo"],["▤","Loja"],["⚙","Opções"],["☰","Chat"]
+	]
+	for item in menu_items:
+		var glyph: String = item[0]
+		var n: String = item[1]
+		var action := func():
+			if n == "Poção":
+				use_potion()
+			elif n == "Chat":
+				cp.visible = not cp.visible
+				if cp.visible:
+					entry.grab_focus()
+			else:
+				toggle(n)
+		var b := button(menu,glyph,action)
+		b.tooltip_text = n
+		b.custom_minimum_size = Vector2(34,46)
+
 	var attack_button := Button.new()
-	attack_button.text = "Atacar" if OS.has_feature("mobile") else "Atacar (Mouse esq.)"
+	attack_button.text = "⚔ ATACAR" if OS.has_feature("mobile") else "⚔ ATACAR"
+	attack_button.tooltip_text = "Ataque básico"
 	attack_button.focus_mode = Control.FOCUS_NONE
 	root.add_child(attack_button)
 	attack_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	attack_button.offset_left = -300
-	attack_button.offset_right = -200
-	attack_button.offset_top = -220
-	attack_button.offset_bottom = -170
+	attack_button.offset_left = -148
+	attack_button.offset_right = -12
+	attack_button.offset_top = -158
+	attack_button.offset_bottom = -108
 	attack_button.pressed.connect(func(): world.attack())
-	if OS.has_feature("mobile"): attack_button.hide()
 
-	var map := panel_at(Vector2.ZERO,Vector2(170,100))
-	map.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	map.offset_left = -185
-	map.offset_right = -12
-	map.offset_top = 12
-	map.offset_bottom = 115
-	var mv := VBoxContainer.new()
-	map.add_child(mv)
-	label(mv,"◇  Campo inicial")
-	coords = label(mv,"0, 0")
-	button(mv,"Mapa grande",func(): toggle("Mapa"))
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
 	cp.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	cp.offset_left = -170
 	cp.offset_right = 170
-	cp.offset_top = -180
-	cp.offset_bottom = -66
+	cp.offset_top = -210
+	cp.offset_bottom = -96
 	var cv := VBoxContainer.new()
 	cp.add_child(cv)
 	chat = RichTextLabel.new()
@@ -116,14 +194,12 @@ func _ready():
 	entry.placeholder_text = "Chat local"
 	cv.add_child(entry)
 	entry.text_submitted.connect(func(msg):
-		chat.add_text("\nVocê: " + msg)
+		chat.add_text("\\nVocê: " + msg)
 		entry.clear()
 		entry.release_focus()
 		cp.hide())
 	cp.hide()
-	button(h,"Chat",func():
-		cp.visible = not cp.visible
-		if cp.visible: entry.grab_focus())
+
 	var inv := window("Inventário",Vector2(300,440),true)
 	label(inv,"Equipamentos iniciais")
 	weapon_button = button(inv,"Equipar espada",func(): item_action("weapon"))
@@ -151,7 +227,7 @@ func _ready():
 		label(v,"Espaços reservados — ainda sem ações")
 		grid_slots(v,6,24)
 	label(window("Missões",Vector2(300,220)),"Nenhuma missão disponível.")
-	label(window("Amigos",Vector2(300,220)),"Amigos / Guilda / Bloqueados\nServidor online pendente.")
+	label(window("Amigos",Vector2(300,220)),"Amigos / Guilda / Bloqueados\\nServidor online pendente.")
 	var g := window("Grupo",Vector2(300,260))
 	label(g,"Grupo: 0 / 8 • offline")
 	var opt := OptionButton.new()
@@ -159,7 +235,7 @@ func _ready():
 	opt.add_item("EXP uniforme")
 	g.add_child(opt)
 	label(g,"Convites e partilha: requer servidor.")
-	label(window("Mapa",Vector2(300,220)),"Campo inicial • mapa gráfico pendente")
+	label(window("Mapa",Vector2(300,220)),"Mapa de campo • coordenadas em tempo real")
 	var shop := window("Loja",Vector2(300,260))
 	label(shop,"Vendedora de teste • comércio local")
 	button(shop,"Comprar poção (10 moedas)",func():
@@ -179,8 +255,8 @@ func _ready():
 			coins += 5
 			refresh())
 	label(shop,"Loja premium e NPC físico: pendentes")
-	var menu := window("Opções",Vector2(300,360))
-	label(menu,"Sensibilidade da câmera (Android)")
+	var opt_window := window("Opções",Vector2(300,360))
+	label(opt_window,"Sensibilidade da câmera (Android)")
 	var sensitivity := HSlider.new()
 	sensitivity.min_value = 1
 	sensitivity.max_value = 100
@@ -188,22 +264,22 @@ func _ready():
 	settings.load("user://settings.cfg")
 	sensitivity.value = settings.get_value("controls","sensitivity",50.0)
 	world.touch_sensitivity = sensitivity.value
-	menu.add_child(sensitivity)
+	opt_window.add_child(sensitivity)
 	sensitivity.value_changed.connect(func(value: float):
 		world.touch_sensitivity = value
 		settings.set_value("controls","sensitivity",value)
 		settings.save("user://settings.cfg"))
 	if OS.has_feature("mobile"):
-		button(menu,"Personalizar HUD",func():
+		button(opt_window,"Personalizar HUD",func():
 			windows["Opções"].hide()
 			get_tree().call_group("mobile_hud","edit_layout"))
-	button(menu,"Ajuda / controles",func(): toggle("Ajuda"))
-	button(menu,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
-	button(menu,"Teleportador",func(): toggle("Teleportador"))
-	label(menu,"Canal / conta / personagem: offline")
-	button(menu,"Desconectar • voltar ao login",disconnect_to_login)
-	button(menu,"Sair do jogo",func(): get_tree().quit())
-	label(window("Ajuda",Vector2(320,180)),"WASD: mover • Shift: correr\nEspaço: pular • Botão direito: câmera\nScroll: zoom • I: inventário • Esc: opções")
+	button(opt_window,"Ajuda / controles",func(): toggle("Ajuda"))
+	button(opt_window,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
+	button(opt_window,"Teleportador",func(): toggle("Teleportador"))
+	label(opt_window,"Canal / conta / personagem: offline")
+	button(opt_window,"Desconectar • voltar ao login",disconnect_to_login)
+	button(opt_window,"Sair do jogo",func(): get_tree().quit())
+	label(window("Ajuda",Vector2(320,180)),"WASD: mover • Shift: correr\\nEspaço: pular • Botão direito: câmera\\nScroll: zoom • I: inventário • Esc: opções")
 	var tp := window("Teleportador",Vector2(300,200))
 	button(tp,"Retornar ao ponto inicial",func():
 		world.player.position = Vector3(0,0.1,0)
