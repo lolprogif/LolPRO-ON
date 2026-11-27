@@ -582,7 +582,12 @@ func castle_portal(pos: Vector3, destination: Vector3):
 	torus.rings = 32
 	torus.ring_segments = 12
 	ring.mesh = torus
-	ring.material_override = castle_stone(Color("65717e"))
+	var rim_mat := StandardMaterial3D.new()
+	rim_mat.albedo_color = Color("58cfff")
+	rim_mat.emission_enabled = true
+	rim_mat.emission = Color("249dff")
+	rim_mat.emission_energy_multiplier = 2.5
+	ring.material_override = rim_mat
 	add_child(ring)
 	ring.position = pos
 	ring.rotation_degrees.x = 90
@@ -598,15 +603,20 @@ void fragment(){
  float r=length(p);
  if(r>1.0){discard;}
  float a=atan(p.y,p.x);
- float wave=sin(a*12.0-r*22.0+TIME*2.0);
- float rim=exp(-pow((r-0.87)*18.0,2.0));
- ALBEDO=vec3(0.015,0.12,0.38)+vec3(0.15,0.65,1.0)*(rim+0.16*wave+0.18);
+ float spiral=pow(0.5+0.5*sin(a*5.0-r*19.0+TIME*3.0),4.0);
+ float rim=exp(-pow((r-0.94)*24.0,2.0));
+ float pulse=0.8+0.2*sin(TIME*3.0);
+ float core=exp(-r*r*8.0);
+ vec3 glow=vec3(0.04,0.22,0.65)+vec3(0.15,0.65,1.0)*(spiral*0.9+core*0.65)+vec3(0.65,0.9,1.0)*rim;
+ ALBEDO=glow;
+ EMISSION=glow*pulse*1.5;
 }"""
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
 	disc.material_override = mat
 	add_child(disc)
 	disc.position = pos + Vector3(0,0,0.08)
+	temple_light(pos + Vector3(0,0,1.5),Color("37baff"),2.0,9.0)
 	var area := Area3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
