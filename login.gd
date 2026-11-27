@@ -131,6 +131,10 @@ func _ready():
 	user.text = str(settings.get_value("login", "username", ""))
 	password = field(v, "Senha")
 	password.secret = true
+	var show_password := CheckBox.new()
+	show_password.text = "Mostrar senha"
+	show_password.toggled.connect(func(visible_password: bool): password.secret = not visible_password)
+	v.add_child(show_password)
 
 	remember_user = CheckBox.new()
 	remember_user.text = "Lembrar meu usuário neste dispositivo"
