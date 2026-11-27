@@ -466,6 +466,13 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		get_tree().set_meta("account_endpoint",endpoint.text.strip_edges())
 		get_tree().set_meta("account_token",token)
 		show_selection(d.get("characters",[]),str(d.get("character","")))
+	elif action == "delete_character":
+		var updated_items: Array = d.get("characters",[])
+		var updated_legacy := str(d.get("character",""))
+		if is_instance_valid(selection): selection.queue_free()
+		status = null
+		show_selection(updated_items,updated_legacy)
+		status.text = str(d.get("message","Personagem excluído."))
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
 		get_tree().set_meta("online_token",token)
@@ -676,6 +683,49 @@ func show_selection(items: Array, legacy: String):
 		if status:
 			status.text = "Entre com sua conta.")
 	actions.add_child(back)
+	var delete_button := Button.new()
+	delete_button.text = "APAGAR PERSONAGEM"
+	delete_button.custom_minimum_size = Vector2(190,42)
+	delete_button.disabled = not slot_names.has(selected_slot)
+	delete_button.pressed.connect(func():
+		if not slot_names.has(selected_slot):
+			return
+		var confirm_window := Window.new()
+		confirm_window.title = "Confirmar exclusão"
+		confirm_window.size = Vector2i(340,190)
+		confirm_window.transient = true
+		confirm_window.exclusive = true
+		add_child(confirm_window)
+		var box := VBoxContainer.new()
+		box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		box.add_theme_constant_override("separation",10)
+		confirm_window.add_child(box)
+		var warning := Label.new()
+		warning.text = "Apagar permanentemente: %s?\nEsta ação não pode ser desfeita." % str(slot_names.get(selected_slot,""))
+		warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(warning)
+		var pass_field := LineEdit.new()
+		pass_field.placeholder_text = "Senha de exclusão"
+		pass_field.secret = true
+		box.add_child(pass_field)
+		var confirm := Button.new()
+		confirm.text = "CONFIRMAR EXCLUSÃO"
+		box.add_child(confirm)
+		confirm.pressed.connect(func():
+			if pass_field.text.is_empty():
+				warning.text = "Digite a senha para continuar."
+				return
+			confirm.disabled = true
+			delete_button.disabled = true
+			confirm_window.hide()
+			send("delete_character",{"token":token,"slot":selected_slot,"delete_password":pass_field.text})
+			confirm_window.queue_free())
+		var cancel := Button.new()
+		cancel.text = "Cancelar"
+		box.add_child(cancel)
+		cancel.pressed.connect(confirm_window.queue_free)
+		confirm_window.popup_centered())
+	actions.add_child(delete_button)
 
 	status = Label.new()
 	status.text = ""
