@@ -419,14 +419,14 @@ func create_valoria():
 	# Entrance stairs.
 	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
 	for i in range(5):
-		map_box("TempleStep", Vector3(0,1.1-float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
+		map_box("TempleStep", Vector3(0,0.99-float(i)*0.22,-26.0+float(i)*1.0), Vector3(12.0,0.22,1.0), dark_stone, false)
 	var ramp_body := StaticBody3D.new()
 	ramp_body.name = "TempleAccessRamp"
-	ramp_body.position = Vector3(0,0.45,-23.5)
-	ramp_body.rotation.x = -atan(1.1/6.0)
+	ramp_body.position = Vector3(0,0.44,-24.0)
+	ramp_body.rotation.x = atan(1.1/5.0)
 	var ramp_collision := CollisionShape3D.new()
 	var ramp_shape := BoxShape3D.new()
-	ramp_shape.size = Vector3(12.0,0.22,6.0)
+	ramp_shape.size = Vector3(12.0,0.22,5.2)
 	ramp_collision.shape = ramp_shape
 	ramp_body.add_child(ramp_collision)
 	add_child(ramp_body)
