@@ -1,4 +1,8 @@
 extends Node3D
+var free_combat := false
+var click_moving := false
+var click_destination := Vector3.ZERO
+var combat_target: Node3D
 var player := CharacterBody3D.new()
 var pivot := Node3D.new()
 var camera := Camera3D.new()
@@ -170,9 +174,9 @@ func animate(state):
 func _unhandled_input(event):
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if not try_guard_click(event.position):
-			attack()
+			click_world(event.position)
 	if event is InputEventScreenTouch and event.pressed:
-		try_guard_click(event.position)
+		if not try_guard_click(event.position): click_world(event.position)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * 0.003
 		pitch = clamp(pitch-event.relative.y*0.003,-1.2,0.15)
@@ -194,6 +198,19 @@ func _physics_process(delta):
 	var direction := Vector3(float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A)),0,float(Input.is_physical_key_pressed(KEY_S))-float(Input.is_physical_key_pressed(KEY_W)))
 	direction += Vector3(touch_dir.x,0,touch_dir.y)
 	direction = direction.normalized().rotated(Vector3.UP,yaw)
+	if direction.length()>0.01:
+		click_moving = false
+		combat_target = null
+	elif click_moving:
+		if is_instance_valid(combat_target): click_destination = combat_target.global_position
+		var offset := click_destination-player.global_position
+		offset.y = 0
+		if offset.length() <= (1.6 if is_instance_valid(combat_target) else 0.3):
+			click_moving = false
+			if is_instance_valid(combat_target):
+				player.rotation.y = atan2(offset.x,offset.z)
+				attack()
+		else: direction = offset.normalized()
 	var running := Input.is_physical_key_pressed(KEY_SHIFT) or touch_run
 	var speed := 4.6 if running else 1.8
 	player.velocity.x = move_toward(player.velocity.x,direction.x*speed,delta*18.0)
@@ -238,11 +255,12 @@ func remove_horizontal_motion(ap: AnimationPlayer, clip: String, lock_vertical: 
 			anim.track_set_key_value(track, key, value)
 
 func attack():
+	if not free_combat and not is_instance_valid(combat_target): return
 	if attack_cooldown > 0.0 or get_viewport().gui_get_focus_owner() is LineEdit:
 		return
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0: return
 	attack_cooldown = 0.6
-	if is_instance_valid(net): net.request_attack()
+	if free_combat and is_instance_valid(net): net.request_attack()
 	attack_effect(player)
 	for target in get_tree().get_nodes_in_group("attackable"):
 		if target is Node3D and target.has_method("take_damage"):
@@ -784,3 +802,29 @@ func try_guard_click(screen_pos: Vector2) -> bool:
 			player.velocity = Vector3.ZERO)
 	portal_dialog.popup_centered(Vector2i(320,160))
 	return true
+
+func click_world(screen_pos: Vector2):
+	var origin := camera.project_ray_origin(screen_pos)
+	var end := origin+camera.project_ray_normal(screen_pos)*300.0
+	var query := PhysicsRayQueryParameters3D.create(origin,end)
+	query.exclude = [player.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	combat_target = null
+	var candidates := get_tree().get_nodes_in_group("attackable")
+	if free_combat and is_instance_valid(net):
+		for entry in net.remotes.values(): candidates.append(entry.node)
+	var nearest := 45.0
+	for candidate in candidates:
+		if not candidate is Node3D or candidate == player: continue
+		var point: Vector3 = candidate.global_position+Vector3.UP
+		if camera.is_position_behind(point): continue
+		var d := camera.unproject_position(point).distance_to(screen_pos)
+		if d<nearest:
+			nearest = d
+			combat_target = candidate
+	if is_instance_valid(combat_target):
+		click_destination = combat_target.global_position
+		click_moving = true
+	elif not hit.is_empty():
+		click_destination = hit.position
+		click_moving = true
