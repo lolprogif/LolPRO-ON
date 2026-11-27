@@ -482,7 +482,7 @@ func show_selection(items: Array, legacy: String):
 
 	# Escurece o cenário existente sem esconder a arte de fundo.
 	var shade := ColorRect.new()
-	shade.color = Color(0.015,0.025,0.045,0.48)
+	shade.color = Color("182332")
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	selection.add_child(shade)
@@ -490,9 +490,9 @@ func show_selection(items: Array, legacy: String):
 	var gold := Color("c9a45f")
 	var ivory := Color("f3e5c6")
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.035,0.055,0.075,0.91)
+	panel_style.bg_color = Color("182332")
 	panel_style.border_color = gold
-	panel_style.set_border_width_all(2)
+	panel_style.set_border_width_all(0)
 	panel_style.set_corner_radius_all(5)
 	panel_style.content_margin_left = 16
 	panel_style.content_margin_right = 16
@@ -507,9 +507,9 @@ func show_selection(items: Array, legacy: String):
 	header.offset_top = 0
 	header.offset_bottom = 62
 	var header_style := StyleBoxFlat.new()
-	header_style.bg_color = Color(0.015,0.025,0.035,0.94)
+	header_style.bg_color = Color("182332")
 	header_style.border_color = gold
-	header_style.border_width_bottom = 2
+	header_style.border_width_bottom = 0
 	header.add_theme_stylebox_override("panel",header_style)
 	selection.add_child(header)
 	var heading := Label.new()
@@ -526,7 +526,7 @@ func show_selection(items: Array, legacy: String):
 	content.offset_left = 22
 	content.offset_top = 82
 	content.offset_right = -22
-	content.offset_bottom = -86
+	content.offset_bottom = -12
 	content.add_theme_constant_override("separation",18)
 	selection.add_child(content)
 
@@ -596,7 +596,7 @@ func show_selection(items: Array, legacy: String):
 	var stage_panel := PanelContainer.new()
 	stage_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage_panel.add_theme_stylebox_override("panel",panel_style)
+	stage_panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
 	content.add_child(stage_panel)
 	var stage_box := VBoxContainer.new()
 	stage_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -635,22 +635,10 @@ func show_selection(items: Array, legacy: String):
 		preview_info.text = avatars.get_item_text(index))
 	choose.call(0)
 
-	# Barra inferior com ações claramente separadas.
-	var footer := PanelContainer.new()
-	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	footer.offset_left = 22
-	footer.offset_right = -22
-	footer.offset_top = -70
-	footer.offset_bottom = -12
-	var footer_style := panel_style.duplicate() as StyleBoxFlat
-	footer_style.content_margin_top = 7
-	footer_style.content_margin_bottom = 7
-	footer.add_theme_stylebox_override("panel",footer_style)
-	selection.add_child(footer)
 	var actions := HBoxContainer.new()
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation",14)
-	footer.add_child(actions)
+	stage_box.add_child(actions)
 	var enter := Button.new()
 	enter.text = "⚔  ENTRAR NO MUNDO"
 	enter.custom_minimum_size = Vector2(230,42)
@@ -679,12 +667,7 @@ func show_selection(items: Array, legacy: String):
 	status = Label.new()
 	status.text = ""
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	status.offset_left = 350
-	status.offset_right = -350
-	status.offset_top = -108
-	status.offset_bottom = -82
-	selection.add_child(status)
+	stage_box.add_child(status)
 
 func start_loading():
 	if is_instance_valid(preview_actor):
@@ -747,19 +730,6 @@ func build_preview(parent: VBoxContainer):
 	container.stretch = true
 	parent.add_child(container)
 	container.gui_input.connect(rotate_preview_input)
-	var rotation_controls := HBoxContainer.new()
-	rotation_controls.alignment = BoxContainer.ALIGNMENT_CENTER
-	parent.add_child(rotation_controls)
-	for step in [-45.0,45.0]:
-		var rotate_button := Button.new()
-		rotate_button.text = "Girar esquerda" if step < 0 else "Girar direita"
-		rotation_controls.add_child(rotate_button)
-		rotate_button.pressed.connect(rotate_preview.bind(step))
-	var reset_button := Button.new()
-	reset_button.text = "Frente"
-	rotation_controls.add_child(reset_button)
-	reset_button.pressed.connect(func():
-		if is_instance_valid(preview_actor): preview_actor.rotation.y = 0.0)
 	var viewport := SubViewport.new()
 	viewport.own_world_3d = true
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
