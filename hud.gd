@@ -205,7 +205,7 @@ func _ready():
 	attack_button.offset_top = -140
 	attack_button.offset_bottom = -92
 	attack_button.pressed.connect(func(): world.attack())
-	attack_button.visible = not OS.has_feature("mobile")
+	attack_button.visible = not (OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile"))
 
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
 	cp.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
