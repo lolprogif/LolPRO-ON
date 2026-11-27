@@ -192,7 +192,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		return
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if not data is Dictionary or not data.get("ok",false):
-		status.text = "Falha no mundo online"
+		status.text = "Falha no mundo online: " + str(data.get("error","resposta inválida")) if data is Dictionary else "Resposta inválida do servidor"
 		return
 	var own: Dictionary = data.get("self",{})
 	if not own.is_empty():
