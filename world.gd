@@ -454,10 +454,10 @@ func create_valoria():
 	var wood := Color("493329")
 	var red := Color("6e2028")
 	# Main raised courtyard and the road leading to the temple.
-	map_box("Courtyard", Vector3(0,-0.225,0), Vector3(34,0.45,34), stone)
-	map_box("TempleRoad", Vector3(0,-0.145,-18), Vector3(12,0.3,24), dark_stone)
+	map_box("Courtyard", Vector3(0,-0.195,0), Vector3(34,0.45,34), stone)
+	map_box("TempleRoad", Vector3(0,-0.09,-18), Vector3(12,0.3,24), dark_stone)
 	for i in range(6):
-		map_box("RoadTile", Vector3(0,0.015,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
+		map_box("RoadTile", Vector3(0,0.075,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
 	# Entrance stairs.
 	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
 	for i in range(5):
