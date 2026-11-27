@@ -211,8 +211,8 @@ func _physics_process(delta):
 				player.rotation.y = atan2(offset.x,offset.z)
 				attack()
 		else: direction = offset.normalized()
-	var running := Input.is_physical_key_pressed(KEY_SHIFT) or touch_run
-	var speed := 4.6 if running else 1.8
+	var running := true # Corrida padrão: teclado, toque e clique no chão.
+	var speed := 5.2 # Aumento de aproximadamente 13% sobre os 4.6 anteriores.
 	player.velocity.x = move_toward(player.velocity.x,direction.x*speed,delta*18.0)
 	player.velocity.z = move_toward(player.velocity.z,direction.z*speed,delta*18.0)
 	var jump_now := Input.is_physical_key_pressed(KEY_SPACE) or touch_jump
