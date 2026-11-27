@@ -5,12 +5,7 @@ class MiniMapWidget extends Control:
 		var radius := minf(size.x,size.y) * 0.47
 		draw_circle(center,radius,Color("101722ee"))
 		draw_arc(center,radius,0.0,TAU,64,Color("c4a15d"),2.0,true)
-		draw_arc(center,radius*0.72,0.0,TAU,48,Color("8d774e"),1.0,true)
-		draw_line(Vector2(center.x-radius*0.7,center.y),Vector2(center.x+radius*0.7,center.y),Color("667487"),1.0)
-		draw_line(Vector2(center.x,center.y-radius*0.7),Vector2(center.x,center.y+radius*0.7),Color("667487"),1.0)
-		draw_line(Vector2(center.x-radius*0.48,center.y+radius*0.45),Vector2(center.x+radius*0.35,center.y-radius*0.4),Color("667487"),2.0)
-		draw_circle(center,5.0,Color("f5d27c"))
-		draw_circle(center,2.0,Color("fff4d6"))
+
 var world: Node3D
 var quick_buttons: Array[Button] = []
 var drag_panel: Control
@@ -98,12 +93,6 @@ func _ready():
 	map_widget.offset_right = -12
 	map_widget.offset_top = 12
 	map_widget.offset_bottom = 154
-	var frame := TextureRect.new()
-	frame.texture = preload("res://minimap/minimap.png")
-	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	map_widget.add_child(frame)
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	coords = label(root,"X: 0  Z: 0")
 	coords.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	coords.offset_left = -154
@@ -140,9 +129,10 @@ func _ready():
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.size = Vector2(850,84)
 	var fit_dock := func():
-		var factor := minf(1.0,root.size.x/850.0)
-		bottom.scale = Vector2.ONE*factor
-		bottom.position = Vector2((root.size.x-850.0*factor)/2.0,root.size.y-84.0*factor)
+		var factor := root.size.x/850.0
+		var vertical := minf(factor,root.size.y/720.0)
+		bottom.scale = Vector2(factor,vertical)
+		bottom.position = Vector2(0,root.size.y-84.0*vertical)
 	root.resized.connect(fit_dock)
 	fit_dock.call()
 	merlis_image(bottom,"res://taskbar/taskbar_left.png",Vector2(0,20),Vector2(237,64))
