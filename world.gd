@@ -482,6 +482,7 @@ func create_valoria():
 	# Blue walk-through portal in the original temple.
 	castle_portal(Vector3(0,3.6,-30.5),Vector3(0,0.2,70))
 	create_portal_guard()
+	create_test_monster()
 	for x in [-8.0,-4.0,4.0,8.0]:
 		temple_lantern(Vector3(x,3.1,-27.5))
 	for x in [-5.0,5.0]:
@@ -778,6 +779,42 @@ func create_portal_guard():
 	tag.position.y = 2.2
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	guard.add_child(tag)
+
+func create_test_monster() -> void:
+	var path := "res://assets/portal_guard.fbx"
+	if not ResourceLoader.exists(path):
+		push_warning("Modelo do monstro de teste não encontrado.")
+		return
+	var scene = load(path)
+	if not scene is PackedScene:
+		push_warning("Não foi possível importar o modelo do monstro de teste.")
+		return
+	var monster := scene.instantiate() as Node3D
+	if monster == null:
+		return
+	monster.set_script(load("res://test_monster.gd"))
+	add_child(monster)
+	monster.position = Vector3(2.5, 1.0, -5.0)
+	monster.rotation.y = PI
+	monster.scale = Vector3.ONE * 0.9
+	# Baixa levemente os braços do modelo de teste para não deixá-lo em T-pose.
+	for node in monster.find_children("*", "Skeleton3D", true, false):
+		var skeleton := node as Skeleton3D
+		for i in range(skeleton.get_bone_count()):
+			var bone_name := skeleton.get_bone_name(i).to_lower().replace("_", "")
+			if not (bone_name.ends_with("leftarm") or bone_name.ends_with("rightarm")):
+				continue
+			var rest := skeleton.get_bone_global_rest(i)
+			var direction := rest.basis.y.normalized()
+			for child in skeleton.get_bone_children(i):
+				var offset := skeleton.get_bone_global_rest(child).origin - rest.origin
+				if offset.length() > 0.001:
+					direction = offset.normalized()
+					break
+			var target := Vector3(direction.x * 0.15, -1.0, 0.0).normalized()
+			var delta := Quaternion(direction, target)
+			var local_delta := rest.basis.orthonormalized().inverse() * Basis(delta) * rest.basis.orthonormalized()
+			skeleton.set_bone_pose_rotation(i, skeleton.get_bone_pose_rotation(i) * local_delta.get_rotation_quaternion())
 
 func try_guard_click(screen_pos: Vector2) -> bool:
 	if not is_instance_valid(portal_guard):
