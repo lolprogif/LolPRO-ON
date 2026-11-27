@@ -300,6 +300,7 @@ func _ready():
 	button(opt_window,"Ajuda / controles",func(): toggle("Ajuda"))
 	button(opt_window,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(opt_window,"Teleportador",func(): toggle("Teleportador"))
+	button(opt_window,"Alterar personagem",return_to_character_selection)
 	label(opt_window,"Canal / conta / personagem: offline")
 	button(opt_window,"Desconectar • voltar ao login",disconnect_to_login)
 	button(opt_window,"Sair do jogo",func(): get_tree().quit())
@@ -613,6 +614,10 @@ func pet_part(pos: Vector3, sz: Vector3, color: Color):
 	mat.albedo_color = color
 	part.material_override = mat
 	pet_model.add_child(part)
+
+func return_to_character_selection():
+	if is_instance_valid(world.net): world.net.leave()
+	get_tree().change_scene_to_file("res://Login.tscn")
 
 func disconnect_to_login():
 	if is_instance_valid(world.net): world.net.leave()
