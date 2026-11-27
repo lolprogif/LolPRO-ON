@@ -52,16 +52,11 @@ func _ready():
 	b.position = Vector2(12,125)
 	layer.add_child(b)
 	b.pressed.connect(func(): hud.toggle("Rede"))
-	var bar := HBoxContainer.new()
-	layer.add_child(bar)
-	bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	bar.position = Vector2(get_viewport().get_visible_rect().size.x * 0.25, get_viewport().get_visible_rect().size.y - 90)
 	mana_label = Label.new()
-	bar.add_child(mana_label)
+	layer.add_child(mana_label)
+	mana_label.hide()
 	for i in range(6):
-		var skill_button := Button.new()
-		skill_button.text = str(i+1)
-		bar.add_child(skill_button)
+		var skill_button: Button = hud.quick_buttons[i]
 		skill_buttons.append(skill_button)
 		skill_button.pressed.connect(request_skill.bind(i))
 	var admin = preload("res://admin_panel.gd").new()
@@ -136,7 +131,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -207,6 +202,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		skill_mana = int(own.get("mana",100))
 		skill_cooldowns = own.get("cooldowns",[0,0,0,0,0,0])
 		mana_label.text = "MP %d/100" % skill_mana
+		world.get_children().filter(func(n): return n is CanvasLayer)[0].mana_bar.value = skill_mana
 		var catalog: Array = preload("res://class_skills.gd").skills_for(skill_class)
 		for i in range(6):
 			skill_buttons[i].disabled = skill_level < [5,8,10,12,15,20][i] or float(skill_cooldowns[i]) > 0 or skill_mana < 10+i*3
