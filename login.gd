@@ -548,7 +548,6 @@ func show_selection(items: Array, legacy: String):
 	avatars.custom_minimum_size.y = 38
 	avatars.add_item("Whiteclown • Masculino",0)
 	avatars.add_item("Sura • Masculino",1)
-	avatars.add_item("Guerreiro • Masculino",2)
 	details.add_child(avatars)
 
 	var separator := HSeparator.new()
@@ -599,7 +598,8 @@ func show_selection(items: Array, legacy: String):
 		character.editable = not slot_names.has(index)
 		var profile: Dictionary = slot_profiles.get(index,{})
 		var saved_avatar := str(profile.get("avatar","whiteclown"))
-		var avatar_index: int = int({"whiteclown":0,"sura":1,"warrior_m":2}.get(saved_avatar,0))
+		if saved_avatar == "warrior_m": saved_avatar = "sura"
+		var avatar_index: int = int({"whiteclown":0,"sura":1}.get(saved_avatar,0))
 		avatars.select(avatar_index)
 		avatars.disabled = slot_names.has(index)
 		preview_avatar = saved_avatar
@@ -611,7 +611,7 @@ func show_selection(items: Array, legacy: String):
 		guild_info.text = "Guilda: %s" % str(profile.get("guild","Nenhuma"))
 	slots.item_selected.connect(choose)
 	avatars.item_selected.connect(func(index: int):
-		preview_avatar = ["whiteclown","sura","warrior_m"][index]
+		preview_avatar = ["whiteclown","sura"][index]
 		preview_gender = 0
 		play_preview("Idle")
 		preview_info.text = avatars.get_item_text(index))
@@ -640,7 +640,8 @@ func show_selection(items: Array, legacy: String):
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		var avatar_id: String = str(slot_profiles.get(selected_slot,{}).get("avatar",["whiteclown","sura","warrior_m"][avatars.selected])) if slot_names.has(selected_slot) else ["whiteclown","sura","warrior_m"][avatars.selected]
+		var avatar_id: String = str(slot_profiles.get(selected_slot,{}).get("avatar",["whiteclown","sura"][avatars.selected])) if slot_names.has(selected_slot) else ["whiteclown","sura"][avatars.selected]
+		if avatar_id == "warrior_m": avatar_id = "sura"
 		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Feminino" if avatar_id in ["erika_archer","maria"] else "Masculino","avatar":avatar_id}))
 	actions.add_child(enter)
 	var back := Button.new()
@@ -764,14 +765,8 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String):
-	if preview_avatar == "warrior_m":
-		if is_instance_valid(preview_actor): preview_actor.queue_free()
-		preview_actor = preload("res://original_warrior.gd").new()
-		preview_stage.add_child(preview_actor)
-		preview_actor.call("set_motion", state)
-		return
 	var model_file: String = str({"whiteclown":"Idle.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
-	var custom_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb"}.get(preview_avatar,"res://assets/"+model_file))
+	var custom_path: String = str({"sura":"res://sura_male_novice.glb"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
 	if not scene is PackedScene:
 		push_warning("Modelo de personagem não importado: "+model_file)
