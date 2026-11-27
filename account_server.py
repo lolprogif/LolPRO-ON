@@ -297,6 +297,23 @@ class Handler(BaseHTTPRequestHandler):
        db.execute('INSERT OR REPLACE INTO character_positions VALUES(?,?,?,?,?,?)',(row[0],slot,*pos,angle))
       db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
+    elif self.path=='/delete_character':
+     row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
+     if not row: raise ValueError('Sessão inválida. Entre novamente.')
+     if not hmac.compare_digest(str(d.get('delete_password','')), '1234567'): raise ValueError('Senha de exclusão incorreta.')
+     uid=row[0]
+     slot=d.get('slot',-1)
+     if type(slot) is not int or not 0<=slot<4: raise ValueError('Personagem inválido.')
+     char=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(uid,slot)).fetchone()
+     if not char: raise ValueError('Não existe personagem nesse espaço.')
+     for table in ('characters','progress','character_positions','gear','upgrades','class_profiles','avatar_profiles','pets'):
+      db.execute('DELETE FROM '+table+' WHERE username=? AND slot=?',(uid,slot))
+     db.execute('DELETE FROM session_slots WHERE token=?',(str(d.get('token','')),))
+     remaining=db.execute("SELECT name FROM characters WHERE username=? ORDER BY slot LIMIT 1",(uid,)).fetchone()
+     db.execute('UPDATE accounts SET character=? WHERE username=?',((remaining[0] if remaining else ''),uid))
+     db.commit()
+     chars=[{'slot':i,'name':name,'class':cl,'gender':gender,'avatar':avatar} for i,name,cl,gender,avatar in db.execute("SELECT c.slot,c.name,COALESCE(p.class,'Guerreiro'),COALESCE(p.gender,'Masculino'),COALESCE(a.avatar,'whiteclown') FROM characters c LEFT JOIN class_profiles p ON c.username=p.username AND c.slot=p.slot LEFT JOIN avatar_profiles a ON c.username=a.username AND c.slot=a.slot WHERE c.username=? ORDER BY c.slot",(uid,))]
+     return self.reply({'ok':True,'message':'Personagem excluído.','characters':chars,'character':remaining[0] if remaining else ''})
     elif self.path=='/character':
      row=db.execute('SELECT username FROM sessions WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
      name=str(d.get('character','')).strip()
