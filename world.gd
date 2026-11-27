@@ -65,6 +65,7 @@ func _ready():
 	ground.add_child(floor_shape)
 	add_child(player)
 	player.position.y = 0.65
+	player.floor_snap_length = 0.45
 	var col := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.height = 1.8
@@ -429,11 +430,11 @@ func create_valoria():
 		map_box("TempleStep", Vector3(0,0.99-float(i)*0.22,-26.0+float(i)*1.0), Vector3(12.0,0.22,1.0), dark_stone, false)
 	var ramp_body := StaticBody3D.new()
 	ramp_body.name = "TempleAccessRamp"
-	ramp_body.position = Vector3(0,0.44,-24.0)
-	ramp_body.rotation.x = atan(1.1/5.0)
+	ramp_body.position = Vector3(0,0.43,-23.5)
+	ramp_body.rotation.x = atan(1.1/6.0)
 	var ramp_collision := CollisionShape3D.new()
 	var ramp_shape := BoxShape3D.new()
-	ramp_shape.size = Vector3(12.0,0.22,5.2)
+	ramp_shape.size = Vector3(12.0,0.22,6.2)
 	ramp_collision.shape = ramp_shape
 	ramp_body.add_child(ramp_collision)
 	add_child(ramp_body)
@@ -446,7 +447,7 @@ func create_valoria():
 		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
 		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
 	# Blue walk-through portal in the original temple.
-	castle_portal(Vector3(0,3.6,-38.4),Vector3(0,0.2,70))
+	castle_portal(Vector3(0,3.6,-30.5),Vector3(0,0.2,70))
 	for x in [-8.0,-4.0,4.0,8.0]:
 		temple_lantern(Vector3(x,3.1,-27.5))
 	for x in [-5.0,5.0]:
