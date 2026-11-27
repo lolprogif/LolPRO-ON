@@ -643,7 +643,7 @@ func show_selection(items: Array, legacy: String):
 		avatars.select(avatar_index)
 		avatars.disabled = slot_names.has(index)
 		preview_avatar = saved_avatar
-		preview_gender = 1 if saved_avatar in ["erika_archer","maria"] else 0
+		preview_gender = 0
 		play_preview("Idle")
 		preview_info.text = "Personagem: %s" % character.text if slot_names.has(index) else "Espaço livre • crie seu aventureiro"
 		level_info.text = "Nível: %s" % str(profile.get("level",1))
@@ -670,7 +670,7 @@ func show_selection(items: Array, legacy: String):
 			return
 		var avatar_id: String = str(slot_profiles.get(selected_slot,{}).get("avatar",["whiteclown","sura"][avatars.selected])) if slot_names.has(selected_slot) else ["whiteclown","sura"][avatars.selected]
 		if avatar_id == "warrior_m": avatar_id = "sura"
-		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Feminino" if avatar_id in ["erika_archer","maria"] else "Masculino","avatar":avatar_id}))
+		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Masculino","avatar":avatar_id}))
 	actions.add_child(enter)
 	var back := Button.new()
 	back.text = "VOLTAR"
@@ -820,7 +820,7 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String) -> bool:
-	var model_file: String = str({"whiteclown":("Walking.fbx" if state == "Walking" else "Idle.fbx"),"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
+	var model_file: String = str({"whiteclown":("Walking.fbx" if state == "Walking" else "Idle.fbx"),"sura":"Brute.fbx"}.get(preview_avatar,"Character.fbx"))
 	var custom_path: String = str({"sura":"res://assets/Brute.fbx"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
 	if not scene is PackedScene:
