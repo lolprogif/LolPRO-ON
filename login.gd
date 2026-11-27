@@ -223,6 +223,14 @@ func _ready():
 
 	get_viewport().size_changed.connect(_adapt_login_layout)
 	_adapt_login_layout()
+	if get_tree().has_meta("return_to_character_selection"):
+		var saved_items: Array = get_tree().get_meta("account_characters",[])
+		var saved_legacy := str(get_tree().get_meta("account_character",""))
+		token = str(get_tree().get_meta("online_token",""))
+		endpoint.text = str(get_tree().get_meta("online_endpoint","https://lolpro-on.onrender.com"))
+		user.text = str(get_tree().get_meta("account_username",""))
+		get_tree().remove_meta("return_to_character_selection")
+		show_selection(saved_items,saved_legacy)
 
 func _adapt_login_layout():
 	if not is_instance_valid(login_center):
@@ -452,6 +460,11 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 				push_warning("Não foi possível salvar a senha neste dispositivo.")
 		else:
 			clear_saved_login()
+		get_tree().set_meta("account_characters",d.get("characters",[]))
+		get_tree().set_meta("account_character",str(d.get("character","")))
+		get_tree().set_meta("account_username",user.text.strip_edges())
+		get_tree().set_meta("account_endpoint",endpoint.text.strip_edges())
+		get_tree().set_meta("account_token",token)
 		show_selection(d.get("characters",[]),str(d.get("character","")))
 	elif action == "character":
 		get_tree().set_meta("online_endpoint",endpoint.text.strip_edges())
@@ -565,7 +578,7 @@ func show_selection(items: Array, legacy: String):
 	var avatars := OptionButton.new()
 	avatars.custom_minimum_size.y = 38
 	avatars.add_item("Whiteclown • Masculino",0)
-	avatars.add_item("Sura • Masculino",1)
+	avatars.add_item("Brute • Masculino",1)
 	details.add_child(avatars)
 
 	var separator := HSeparator.new()
@@ -756,7 +769,7 @@ func build_preview(parent: VBoxContainer):
 	play_preview("Idle")
 func play_preview(state: String) -> bool:
 	var model_file: String = str({"whiteclown":("Walking.fbx" if state == "Walking" else "Idle.fbx"),"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
-	var custom_path: String = str({"sura":"res://sura_male_novice.glb"}.get(preview_avatar,"res://assets/"+model_file))
+	var custom_path: String = str({"sura":"res://assets/Brute.fbx"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
 	if not scene is PackedScene:
 		push_warning("Modelo de personagem não importado: "+model_file)
