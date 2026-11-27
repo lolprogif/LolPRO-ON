@@ -617,6 +617,7 @@ func pet_part(pos: Vector3, sz: Vector3, color: Color):
 
 func return_to_character_selection():
 	if is_instance_valid(world.net): world.net.leave()
+	get_tree().set_meta("return_to_character_selection",true)
 	get_tree().change_scene_to_file("res://Login.tscn")
 
 func disconnect_to_login():
