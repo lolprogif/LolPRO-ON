@@ -660,6 +660,16 @@ void fragment(){
 	arcs.material_override = arc_mat
 	add_child(arcs)
 	arcs.position = pos + Vector3(0,0,0.15)
+	# Solid invisible barrier prevents walking through the inactive portal.
+	var barrier := StaticBody3D.new()
+	barrier.name = "PortalBarrier"
+	var collision := CollisionShape3D.new()
+	var barrier_shape := BoxShape3D.new()
+	barrier_shape.size = Vector3(5.4,6.0,0.45)
+	collision.shape = barrier_shape
+	barrier.add_child(collision)
+	add_child(barrier)
+	barrier.position = pos
 func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
 	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	body.name = label
@@ -714,7 +724,7 @@ func create_portal_guard():
 	if guard == null:
 		return
 	add_child(guard)
-	guard.position = Vector3(2.0,1.1,-28.0)
+	guard.position = Vector3(0.0,1.1,-28.0)
 	guard.rotation.y = 0.0
 	# Relax the Mixamo T-pose using local upper-arm bone rotations.
 	for node in guard.find_children("*","Skeleton3D",true,false):
