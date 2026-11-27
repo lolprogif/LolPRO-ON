@@ -65,7 +65,7 @@ func _ready():
 	var voice = preload("res://voice.gd").new()
 	voice.net = self
 	add_child(voice)
-	if OS.has_feature("mobile"):
+	if OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile"):
 		var controls = preload("res://touch.gd").new()
 		controls.world = world
 		layer.add_child(controls)
