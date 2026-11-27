@@ -753,6 +753,12 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String):
+	if preview_avatar == "warrior_m":
+		if is_instance_valid(preview_actor): preview_actor.queue_free()
+		preview_actor = preload("res://original_warrior.gd").new()
+		preview_stage.add_child(preview_actor)
+		preview_actor.call("set_motion", state)
+		return
 	var model_file: String = str({"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
 	var custom_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
