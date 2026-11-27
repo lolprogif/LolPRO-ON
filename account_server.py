@@ -307,7 +307,7 @@ class Handler(BaseHTTPRequestHandler):
      db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
      db.execute('INSERT OR IGNORE INTO class_profiles VALUES(?,?,?,?)',(row[0],slot,cl,gender))
      avatar=str(d.get('avatar','whiteclown'))
-     if avatar not in ('whiteclown','erika_archer','maria'): raise ValueError('Invalid avatar')
+     if avatar not in ('whiteclown','erika_archer','maria','sura','warrior_m'): raise ValueError('Invalid avatar')
      db.execute('INSERT OR REPLACE INTO avatar_profiles VALUES(?,?,?)',(row[0],slot,avatar))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
