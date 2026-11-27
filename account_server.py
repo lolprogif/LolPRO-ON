@@ -177,10 +177,19 @@ class Handler(BaseHTTPRequestHandler):
      angle=d.get('angle')
      state=d.get('state')
      if not isinstance(pos,list) or len(pos)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<=150 for v in pos) or type(angle) not in (int,float) or not math.isfinite(angle) or state not in ('Idle','Walking','Running','Jumping'): raise ValueError('Invalid movement')
-     now=time.monotonic()
+     # Shared presence is stored in the account database so clients served by
+     # different web workers still see the same online world.
+     now=time.time()
      with world_lock:
-      for key in list(players):
-       if now-players[key]['seen']>15: del players[key]
+      db.execute('DELETE FROM world_presence WHERE seen<?',(now-15,))
+      players.clear()
+      for presence_user,payload,seen_at in db.execute('SELECT username,payload,seen FROM world_presence WHERE seen>?',(now-15,)).fetchall():
+       try:
+        presence=json.loads(payload)
+        presence['seen']=float(seen_at)
+        players[presence_user]=presence
+       except (ValueError,TypeError):
+        continue
       db.execute('INSERT OR IGNORE INTO progress(username,slot) VALUES(?,?)',(row[0],slot))
       saved=db.execute('SELECT level,xp,coins,potions,weapon,armor FROM progress WHERE username=? AND slot=?',(row[0],slot)).fetchone()
       if row[0] in players and players[row[0]].get('slot')!=slot: del players[row[0]]
@@ -297,6 +306,12 @@ class Handler(BaseHTTPRequestHandler):
       own['item_seq']=me.get('item_seq','')
       if me['hp']>0:
        db.execute('INSERT OR REPLACE INTO character_positions VALUES(?,?,?,?,?,?)',(row[0],slot,*pos,angle))
+      # Publish every currently visible player to the shared database. This
+      # keeps the same map population visible across app workers/instances.
+      for presence_user,presence in players.items():
+       db.execute('INSERT INTO world_presence(username,slot,payload,seen) VALUES(?,?,?,?) ON CONFLICT(username) DO UPDATE SET slot=excluded.slot,payload=excluded.payload,seen=excluded.seen',
+        (presence_user,int(presence.get('slot',0)),json.dumps(presence,separators=(',',':')),float(presence.get('seen',now))))
+      db.execute('DELETE FROM world_presence WHERE seen<?',(now-15,))
       db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
     elif self.path=='/delete_character':
