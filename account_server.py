@@ -24,7 +24,7 @@ if DATABASE_URL:
     sql=sql.replace('INSERT OR IGNORE INTO ','INSERT INTO ',1)+' ON CONFLICT DO NOTHING'
    elif sql.startswith('INSERT OR REPLACE INTO '):
     table=sql.split()[4]
-    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot'),'avatar_profiles':('username,slot','avatar')}[table]
+    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot'),'avatar_profiles':('username,slot','avatar'),'character_positions':('username,slot','x=EXCLUDED.x,y=EXCLUDED.y,z=EXCLUDED.z,angle')}[table]
     sql=sql.replace('INSERT OR REPLACE INTO ','INSERT INTO ',1)+f' ON CONFLICT ({keys}) DO UPDATE SET {field}=EXCLUDED.{field}'
    return self.conn.execute(sql,params)
   def commit(self): self.conn.commit()
@@ -48,6 +48,7 @@ with connect_db() as db:
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS progress (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, potions INTEGER DEFAULT 5, weapon INTEGER DEFAULT 0, armor INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
  db.execute('CREATE TABLE IF NOT EXISTS character_positions (username TEXT, slot INTEGER, x REAL, y REAL, z REAL, angle REAL, PRIMARY KEY(username,slot))')
+ db.execute('CREATE TABLE IF NOT EXISTS world_presence (username TEXT PRIMARY KEY, slot INTEGER, payload TEXT, seen DOUBLE PRECISION)')
  db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
@@ -167,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
      return self.reply({'ok':True,'packets':packets})
     elif self.path=='/world':
      row=db.execute('SELECT accounts.username, accounts.character FROM sessions JOIN accounts ON sessions.username=accounts.username WHERE token=? AND expires>?',(str(d.get('token','')),int(time.time()))).fetchone()
-     if not row or not row[1]: raise ValueError('Invalid session or character')
+     if not row: raise ValueError('Invalid session or character')
      chosen=db.execute('SELECT slot FROM session_slots WHERE token=?',(str(d.get('token','')),)).fetchone()
      slot=chosen[0] if chosen else 0
      char=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(row[0],slot)).fetchone()
@@ -293,6 +294,7 @@ class Handler(BaseHTTPRequestHandler):
       for item in others:
        source=players[item['id']]
        item['pet']=source.get('pet',{})
+       item['avatar']=source.get('avatar','whiteclown')
        item.update(class_name=source.get('class','Guerreiro'),skill_event=source.get('skill_event',''),skill_index=source.get('skill_index',-1))
       updated=tuple(me[k] for k in ('level','xp','coins','potions','weapon','armor'))
       if updated!=saved: db.execute('UPDATE progress SET level=?,xp=?,coins=?,potions=?,weapon=?,armor=? WHERE username=? AND slot=?',(*updated,row[0],slot))
