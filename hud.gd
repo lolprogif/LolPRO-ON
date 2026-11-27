@@ -73,9 +73,8 @@ func _ready():
 		panel_style.set_content_margin(side,4.0)
 	theme_rpg.set_stylebox("panel","PanelContainer",panel_style)
 	theme_rpg.default_font_size = 13
-	if not OS.has_feature("mobile"):
-		Input.set_custom_mouse_cursor(preload("res://png/cursors/cursors/cursor_gauntlet.png"),Input.CURSOR_ARROW,Vector2.ZERO)
-		Input.set_custom_mouse_cursor(preload("res://png/cursors/cursors/cursor_interact.png"),Input.CURSOR_POINTING_HAND,Vector2.ZERO)
+	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
+	Input.set_custom_mouse_cursor(null,Input.CURSOR_POINTING_HAND)
 	root.theme = theme_rpg
 
 	# Compact character identity at the top-left; combat status lives in the bottom HUD.
@@ -440,7 +439,15 @@ func _process(_delta):
 func _unhandled_key_input(event):
 	if event.pressed and not event.echo:
 		if event.keycode == KEY_I: toggle("Inventário")
-		if event.keycode == KEY_ESCAPE: toggle("Opções")
+		if event.keycode == KEY_ESCAPE:
+			var closed := false
+			for panel in windows.values():
+				if panel.visible:
+					panel.hide()
+					closed = true
+			if not closed:
+				toggle("Opções")
+			get_viewport().set_input_as_handled()
 
 func build_item_inventory(parent: Node):
 	inventory_items = gear_names.duplicate()
