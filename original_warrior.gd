@@ -21,13 +21,18 @@ func part(parent: Node3D, pos: Vector3, dims: Vector3, tint: Color, rounded: boo
 		m.mesh = box
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = tint
-	mat.metallic = 0.65 if tint == gold or tint == armor else 0.0
+	mat.metallic = 0.25 if tint == gold or tint == armor else 0.0
+	mat.roughness = 0.65
+	mat.emission_enabled = true
+	mat.emission = tint
+	mat.emission_energy_multiplier = 0.12
 	m.material_override = mat
 	parent.add_child(m)
 	m.position = pos
 	return m
 
 func _ready():
+	show()
 	part(self,Vector3(0,1.16,0),Vector3(0.52,0.58,0.32),armor,true)
 	part(self,Vector3(0,0.91,0),Vector3(0.46,0.13,0.34),gold)
 	part(self,Vector3(0,1.65,0),Vector3(0.29,0.35,0.28),skin,true)
@@ -35,7 +40,7 @@ func _ready():
 	for i in range(5):
 		var tuft := part(self,Vector3(-0.12+i*0.06,1.88,-0.02),Vector3(0.08,0.19,0.11),Color("e4e6ef"),true)
 		tuft.rotation.z = -0.3
-	for side in [-1,1]:
+	for side in [-1.0,1.0]:
 		var arm := Node3D.new()
 		add_child(arm)
 		arm.position = Vector3(side*0.34,1.39,0)
@@ -59,7 +64,7 @@ func set_motion(state: String):
 
 func _process(delta):
 	phase += delta * (11.0 if motion == "Running" else 6.0)
-	var amplitude := 0.65 if motion == "Running" else (0.40 if motion == "Walking" else 0.025)
+	var amplitude: float = 0.65 if motion == "Running" else (0.40 if motion == "Walking" else 0.025)
 	if motion == "Jumping":
 		amplitude = 0.0
 	for i in range(limbs.size()):
