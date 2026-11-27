@@ -74,14 +74,18 @@ jobs:
         run: |
           mkdir -p ~/.android ~/.config/godot
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/lolpro-release.keystore"
+            printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$HOME/.android/lolpro-release.keystore"
             echo "release_signing=true" >> "$GITHUB_OUTPUT"
             KS="$HOME/.android/lolpro-release.keystore"
-            if ! keytool -list -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            if ! keytool -list -storetype PKCS12 -keystore "$KS" -storepass:env KEYSTORE_PASSWORD >/dev/null; then
+              echo "::error::Não foi possível abrir o arquivo PKCS12 com a senha cadastrada."
+              exit 1
+            fi
+            if ! keytool -list -storetype PKCS12 -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" >/dev/null; then
               echo "::error::A senha do arquivo ou o alias cadastrado não confere."
               exit 1
             fi
-            if ! keytool -certreq -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -keypass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -file "$RUNNER_TEMP/lolpro.csr" >/dev/null 2>&1; then
+            if ! keytool -certreq -storetype PKCS12 -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -keypass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -file "$RUNNER_TEMP/lolpro.csr" >/dev/null 2>&1; then
               echo "::error::A chave privada não aceita a senha do arquivo. Godot exige senhas iguais."
               exit 1
             fi
