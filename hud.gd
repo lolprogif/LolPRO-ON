@@ -91,6 +91,12 @@ func _ready():
 	map_widget.offset_right = -12
 	map_widget.offset_top = 12
 	map_widget.offset_bottom = 154
+	var frame := TextureRect.new()
+	frame.texture = preload("res://png/hud_bars_globes/minimap_circle_frame.png")
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_widget.add_child(frame)
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	coords = label(root,"X: 0  Z: 0")
 	coords.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	coords.offset_left = -154
@@ -106,29 +112,39 @@ func _ready():
 	map_button.offset_bottom = 214
 
 	# Bottom action dock: life/mana/EXP, skill slots, then compact menu icons.
-	var bottom := panel_at(Vector2.ZERO,Vector2.ZERO)
-	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_left = 8
-	bottom.offset_right = -8
-	bottom.offset_top = -86
+	var bottom := PanelContainer.new()
+	root.add_child(bottom)
+	bottom.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	bottom.offset_left = -310
+	bottom.offset_right = 310
+	bottom.offset_top = -104
 	bottom.offset_bottom = -8
+	bottom.add_theme_stylebox_override("panel", medieval_box("res://png/windows_panels/panel_iron_dark.png",12))
 	var dock := HBoxContainer.new()
-	dock.add_theme_constant_override("separation",8)
+	dock.alignment = BoxContainer.ALIGNMENT_CENTER
+	dock.add_theme_constant_override("separation",4)
 	bottom.add_child(dock)
 
 	var vitals := PanelContainer.new()
 	vitals.custom_minimum_size = Vector2(140,70)
 	dock.add_child(vitals)
+	vitals.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
 	var stats := VBoxContainer.new()
 	stats.add_theme_constant_override("separation",2)
 	vitals.add_child(stats)
-	hp_bar = bar(stats,hp,Color("d04455"))
-	mana_bar = bar(stats,100,Color("428bd8"))
+	var hp_row := HBoxContainer.new()
+	stats.add_child(hp_row)
+	globe_icon(hp_row,"res://png/hud_bars_globes/globe_preview_hp.png")
+	hp_bar = bar(hp_row,hp,Color("d04455"))
+	var mp_row := HBoxContainer.new()
+	stats.add_child(mp_row)
+	globe_icon(mp_row,"res://png/hud_bars_globes/globe_preview_mp.png")
+	mana_bar = bar(mp_row,100,Color("428bd8"))
 	xp_bar = bar(stats,0,Color("d9b45d"))
 	wallet_label = label(stats,"100 moedas  •  5 poções")
 
 	var skill_panel := PanelContainer.new()
-	skill_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skill_panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
 	skill_panel.custom_minimum_size.x = 150
 	dock.add_child(skill_panel)
 	var skills := HBoxContainer.new()
@@ -139,7 +155,7 @@ func _ready():
 		var slot := Button.new()
 		slot.text = str(i+1)
 		slot.tooltip_text = "Habilidade %d" % (i+1)
-		slot.custom_minimum_size = Vector2(24,32)
+		slot.custom_minimum_size = Vector2(28,28)
 		slot.focus_mode = Control.FOCUS_NONE
 		var slot_style := StyleBoxTexture.new()
 		slot_style.texture = preload("res://png/slots_inventory/slot_normal.png")
@@ -148,7 +164,9 @@ func _ready():
 
 	var menu_panel := PanelContainer.new()
 	dock.add_child(menu_panel)
-	var menu := HBoxContainer.new()
+	menu_panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
+	var menu := GridContainer.new()
+	menu.columns = 6
 	menu.add_theme_constant_override("separation",2)
 	menu_panel.add_child(menu)
 	var menu_items := [
@@ -575,3 +593,20 @@ func disconnect_to_login():
 	for key in ["online_token","online_endpoint","hud_profile"]:
 		if get_tree().has_meta(key): get_tree().remove_meta(key)
 	get_tree().change_scene_to_file("res://Login.tscn")
+
+func medieval_box(path: String, margin: int) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(path) as Texture2D
+	for side in [SIDE_LEFT,SIDE_RIGHT,SIDE_TOP,SIDE_BOTTOM]:
+		sb.set_texture_margin(side,margin)
+		sb.set_content_margin(side,4)
+	return sb
+
+func globe_icon(parent: Control, path: String):
+	var icon := TextureRect.new()
+	icon.texture = load(path) as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(26,26)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(icon)
