@@ -10,6 +10,8 @@ var settings := ConfigFile.new()
 var toolbar: HBoxContainer
 var size_slider: HSlider
 var profile := "offline"
+var toolbar_drag := false
+var toolbar_offset := Vector2.ZERO
 func is_mobile_platform() -> bool:
 	return OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile")
 func _ready():
@@ -28,7 +30,11 @@ func _ready():
 		radii[key] = clampf(float(settings.get_value(profile,key+"_radius",radii[key])),24,85)
 	toolbar = HBoxContainer.new()
 	add_child(toolbar)
-	toolbar.position = Vector2(8,8)
+	toolbar.position = settings.get_value(profile,"toolbar_position",Vector2(8,8))
+	var grip := Button.new()
+	grip.text = "↔ Mover HUD"
+	toolbar.add_child(grip)
+	grip.gui_input.connect(drag_toolbar)
 	var save := Button.new()
 	save.text = "Salvar HUD"
 	toolbar.add_child(save)
@@ -48,7 +54,20 @@ func _ready():
 	toolbar.add_child(size_slider)
 	size_slider.value_changed.connect(func(value: float): radii[selected] = value)
 	toolbar.hide()
+func drag_toolbar(event: InputEvent):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		toolbar_drag = event.pressed
+		toolbar_offset = get_global_mouse_position()-toolbar.position
+	elif event is InputEventMouseMotion and toolbar_drag:
+		toolbar.position = (get_global_mouse_position()-toolbar_offset).clamp(Vector2.ZERO,(get_viewport_rect().size-toolbar.size).max(Vector2.ZERO))
+	elif event is InputEventScreenTouch:
+		toolbar_drag = event.pressed
+		toolbar_offset = event.position
+	elif event is InputEventScreenDrag and toolbar_drag:
+		toolbar.position = (toolbar.position+event.relative).clamp(Vector2.ZERO,(get_viewport_rect().size-toolbar.size).max(Vector2.ZERO))
+
 func reset_layout():
+	if is_instance_valid(toolbar): toolbar.position = Vector2(8,8)
 	positions = defaults.duplicate()
 	radii = {"move":45.0,"jump":36.0,"attack":36.0,"run":36.0,"mic":28.0}
 func center(key: String) -> Vector2:
@@ -62,7 +81,9 @@ func edit_layout():
 	editing = true
 	size_slider.set_value_no_signal(radii[selected])
 	toolbar.show()
+	toolbar.position = toolbar.position.clamp(Vector2.ZERO,(get_viewport_rect().size-toolbar.size).max(Vector2.ZERO))
 func save_layout():
+	settings.set_value(profile,"toolbar_position",toolbar.position)
 	for key in defaults:
 		settings.set_value(profile,key,positions[key])
 		settings.set_value(profile,key+"_radius",radii[key])
@@ -70,6 +91,7 @@ func save_layout():
 	finish_edit()
 func cancel_layout():
 	reset_layout()
+	toolbar.position = settings.get_value(profile,"toolbar_position",Vector2(8,8))
 	for key in defaults:
 		positions[key] = settings.get_value(profile,key,defaults[key])
 		radii[key] = clampf(float(settings.get_value(profile,key+"_radius",radii[key])),24,85)
