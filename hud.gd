@@ -103,14 +103,14 @@ func _ready():
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_left = 8
 	bottom.offset_right = -8
-	bottom.offset_top = -94
+	bottom.offset_top = -132
 	bottom.offset_bottom = -8
 	var dock := HBoxContainer.new()
 	dock.add_theme_constant_override("separation",8)
 	bottom.add_child(dock)
 
 	var vitals := PanelContainer.new()
-	vitals.custom_minimum_size = Vector2(214,76)
+	vitals.custom_minimum_size = Vector2(214,112)
 	dock.add_child(vitals)
 	var stats := VBoxContainer.new()
 	stats.add_theme_constant_override("separation",2)
@@ -136,7 +136,7 @@ func _ready():
 		var slot := Button.new()
 		slot.text = str(i+1)
 		slot.tooltip_text = "Habilidade %d" % (i+1)
-		slot.custom_minimum_size = Vector2(38,48)
+		slot.custom_minimum_size = Vector2(40,56)
 		slot.focus_mode = Control.FOCUS_NONE
 		skills.add_child(slot)
 
@@ -160,7 +160,7 @@ func _ready():
 				toggle(n)
 		var b := button(menu,glyph,action)
 		b.tooltip_text = n
-		b.custom_minimum_size = Vector2(34,46)
+		b.custom_minimum_size = Vector2(32,54)
 
 	var attack_button := Button.new()
 	attack_button.text = "⚔ ATACAR" if OS.has_feature("mobile") else "⚔ ATACAR"
@@ -200,7 +200,7 @@ func _ready():
 		if cp.visible:
 			entry.grab_focus())
 	chat_button.tooltip_text = "Chat"
-	chat_button.custom_minimum_size = Vector2(34,46)
+	chat_button.custom_minimum_size = Vector2(32,54)
 
 	var inv := window("Inventário",Vector2(300,440),true)
 	label(inv,"Equipamentos iniciais")
