@@ -1,0 +1,58 @@
+Classic Dark Fantasy RPG UI Kit - Godot 4 Theme & HUD Setup Notes
+========================================================================
+
+1. QUICK INSTALL
+   Copy the entire `Classic Dark Fantasy RPG UI Kit` folder directly into your Godot 4 project's
+   `res://` root so resource paths resolve out of the box:
+     res://Classic Dark Fantasy RPG UI Kit/godot_theme/classic_rpg_theme.tres
+     res://Classic Dark Fantasy RPG UI Kit/godot_theme/demo_hud.tscn
+
+   (If you place the kit inside a subfolder like `res://assets/`, search and
+   replace `res://Classic Dark Fantasy RPG UI Kit/` with `res://assets/Classic Dark Fantasy RPG UI Kit/` in both the
+   `.tres` and `.tscn` files before opening them in the Godot editor.)
+
+2. APPLYING THE THEME
+   - Attach `classic_rpg_theme.tres` to your root `Control` or `CanvasLayer`
+     container (`Theme -> Theme`), or set it globally in:
+     Project Settings -> GUI -> Theme -> Custom.
+   - Standard Godot controls (`Panel`, `PanelContainer`, `Button`, `TabContainer`,
+     `TabBar`, `ProgressBar`, `HSlider`, `VScrollBar`, `CheckBox`, `LineEdit`,
+     `HSeparator`, `TooltipPanel`) automatically style themselves.
+
+3. INCLUDED TYPE VARIATIONS
+   - `CrimsonButton` (base: `Button`): Secondary crimson & brass action button.
+   - `DialogPanel` (base: `PanelContainer`): Dialog frame for modals & skill panels.
+   - `TitleScreenPanel` (base: `PanelContainer`): Heavy title / menu screen backdrop.
+   - `ParchmentPanel` (base: `PanelContainer`): Leather-stitched parchment window.
+   - `ParchmentLabel` (base: `Label`): Dark sepia ink (`#241a12`) text preset.
+   - `TitleLabel` (base: `Label`): Bold Cinzel gold heading (`#fae096`).
+   - `LoadingBar` (base: `ProgressBar`): Gold-filled wide loading bar preset.
+   - `SkillNodeActive` / `SkillNodeAvailable` / `SkillNodeNormal` / `SkillNodeLocked`
+     (base: `Button`): Icon-ready circular skill tree socket states.
+
+4. BUNDLED FONTS (/fonts/, SIL Open Font License 1.1)
+   - `Cinzel[wght].ttf` & `CrimsonText-*.ttf` are pre-wired into
+     `classic_rpg_theme.tres` (Cinzel for headings/buttons/tabs, Crimson Text
+     as `default_font`). See `fonts/*-OFL.txt` for font license text.
+
+5. LAYERED HEALTH & MANA GLOBES (TextureProgressBar)
+   Stack four matching circular layers at the same size (e.g. 192x192 or 256x256):
+     - `texture_under`:    png/hud_bars_globes/globe_socket_back.png
+     - `texture_progress`: png/hud_bars_globes/globe_liquid_crimson.png (or cobalt/emerald/gold)
+       with `fill_mode = 3` (Bottom to Top) and `nine_patch_stretch = true`
+     - `texture_over`:     png/hud_bars_globes/globe_bezel_ornate.png
+     - Top `TextureRect`:  png/hud_bars_globes/globe_glass_overlay.png (`mouse_filter = IGNORE`)
+
+6. HARDWARE / CUSTOM CURSORS
+   Call `Input.set_custom_mouse_cursor(tex, shape, hotspot)` in GDScript using
+   exact hotspot coordinates from `metadata/nine_slice_margins.json`:
+     - cursor_gauntlet.png : Vector2(8, 6)   [Default pointer]
+     - cursor_sword.png    : Vector2(8, 8)   [Attack / Enemy hover]
+     - cursor_interact.png : Vector2(22, 10) [Loot / Door / NPC]
+     - cursor_spell.png    : Vector2(32, 32) [AoE / Ground target]
+     - cursor_locked.png   : Vector2(32, 32) [Out of range / Blocked]
+
+7. OTHER ENGINES (UNITY / UNREAL / CUSTOM)
+   Every 9-slice margin (`left, top, right, bottom`, Unity `[L, B, R, T]` sprite
+   borders, and Unreal UMG normalized UV margins) is exported in
+   `metadata/nine_slice_margins.json`.
