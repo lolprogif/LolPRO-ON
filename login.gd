@@ -733,22 +733,14 @@ func build_preview(parent: VBoxContainer):
 	env.environment.background_color = Color("182332")
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color("aabbdc")
-	env.environment.ambient_light_energy = 0.7
+	env.environment.ambient_light_energy = 1.0
 	preview_stage.add_child(env)
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-35,-35,0)
 	preview_stage.add_child(light)
-	var pedestal := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 1.0
-	cylinder.bottom_radius = 1.15
-	cylinder.height = 0.2
-	pedestal.mesh = cylinder
-	pedestal.position.y = -0.1
-	preview_stage.add_child(pedestal)
 	preview_camera = Camera3D.new()
 	preview_stage.add_child(preview_camera)
-	preview_camera.position = Vector3(0,1.2,3.0)
+	preview_camera.position = Vector3(0,1.2,2.7)
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
@@ -772,5 +764,6 @@ func play_preview(state: String):
 		var ap: AnimationPlayer = node
 		for clip in ap.get_animation_list():
 			if clip == "RESET": continue
+			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 			ap.play(clip)
 			break
