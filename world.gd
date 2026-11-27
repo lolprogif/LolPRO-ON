@@ -35,7 +35,7 @@ func _ready():
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55,-35,0)
-	sun.shadow_enabled = true
+	sun.shadow_enabled = not OS.has_feature("mobile")
 	add_child(sun)
 	var ground := StaticBody3D.new()
 	add_child(ground)
@@ -415,60 +415,34 @@ func create_valoria():
 	map_box("TempleRoad", Vector3(0,-0.145,-18), Vector3(12,0.3,24), dark_stone)
 	for i in range(6):
 		map_box("RoadTile", Vector3(0,0.015,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
-	# Entrance stairs.
-	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
-	for i in range(5):
-		map_box("TempleStep", Vector3(0,0.11+float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
-	var ramp_body := StaticBody3D.new()
-	ramp_body.name = "TempleAccessRamp"
-	ramp_body.position = Vector3(0,0.55,-29.5)
-	ramp_body.rotation.x = atan(1.1/6.0)
-	var ramp_collision := CollisionShape3D.new()
-	var ramp_shape := BoxShape3D.new()
-	ramp_shape.size = Vector3(12.0,0.22,6.0)
-	ramp_collision.shape = ramp_shape
-	ramp_body.add_child(ramp_collision)
-	add_child(ramp_body)
-	# Main temple platform, columns and walls.
-	map_box("TempleFoundation", Vector3(0,0.55,-34), Vector3(22,1.1,15), dark_stone)
-	map_box("TempleBackWall", Vector3(0,5.1,-40.5), Vector3(19,7.0,1.0), wood)
-	map_box("TempleLeftWall", Vector3(-9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
-	map_box("TempleRightWall", Vector3(9.5,4.0,-34), Vector3(1.0,5.5,13), wood)
-	for x in [-8.0,-4.0,4.0,8.0]:
-		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
-		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
-	# Red glowing portal at the back of the temple.
-	var portal := MeshInstance3D.new()
-	var portal_mesh := CylinderMesh.new()
-	portal_mesh.top_radius = 3.0
-	portal_mesh.bottom_radius = 3.0
-	portal_mesh.height = 0.22
-	portal.mesh = portal_mesh
-	var portal_mat := StandardMaterial3D.new()
-	portal_mat.albedo_color = Color("d52b35")
-	portal_mat.emission_enabled = true
-	portal_mat.emission = Color("ff1728")
-	portal_mat.emission_energy_multiplier = 2.4
-	portal.material_override = portal_mat
-	portal.position = Vector3(0,4.2,-39.65)
-	portal.rotation_degrees.x = 90
-	add_child(portal)
-	var portal_light := OmniLight3D.new()
-	portal_light.position = Vector3(0,4.2,-36.8)
-	portal_light.light_color = Color("ff2937")
-	portal_light.light_energy = 3.0
-	portal_light.omni_range = 13.0
-	add_child(portal_light)
-	# Three-tier oriental roof with raised eaves and gold ridge.
-	for tier in range(3):
-		var y := 8.0+float(tier)*2.0
-		var width := 23.0-float(tier)*3.3
-		var depth := 16.0-float(tier)*2.4
-		map_box("PagodaRoof", Vector3(0,y,-34), Vector3(width,0.55,depth), roof, false)
-		map_box("RoofGoldRidge", Vector3(0,y+0.35,-34), Vector3(width*0.52,0.12,0.22), gold, false)
-		for side in [-1.0,1.0]:
-			var eave := map_box("RaisedEave", Vector3(side*(width*0.5-0.4),y+0.45,-34), Vector3(0.65,0.7,depth), roof, false)
-			eave.rotation.z = -side*0.10
+	# Medieval castle: walkable approach and blue gateway.
+	map_box("CastleFoundation", Vector3(0,0.5,-34), Vector3(24,1,16), dark_stone)
+	for i in range(8):
+		map_box("CastleStep", Vector3(0,0.0625+float(i)*0.125,-22.5-float(i)), Vector3(12,0.125+float(i)*0.25,1), stone, false)
+	var ramp := map_box("CastleRamp", Vector3(0,0.43,-26), Vector3(12,0.2,8), stone)
+	ramp.get_parent().rotation.x = atan(1.0/8.0)
+	ramp.hide()
+	map_box("CastleKeep", Vector3(0,9,-37), Vector3(15,16,8), stone)
+	for x in [-10.0,10.0,-5.0,5.0]:
+		var h: float = 13.0 if absf(x)>8.0 else 20.0
+		castle_tower(Vector3(x,1,-34),h,2.5 if absf(x)>8.0 else 1.8)
+	for i in range(9):
+		map_box("Battlement",Vector3(-7.0+float(i)*1.75,17.5,-33),Vector3(0.9,1.2,1),stone,false)
+	for x in [-5.0,5.0]:
+		map_box("Banner",Vector3(x,7,-32.85),Vector3(1.5,5,0.06),Color("173c80"),false)
+		map_box("BannerTrim",Vector3(x,4.5,-32.78),Vector3(1.5,0.12,0.08),gold,false)
+	castle_portal(Vector3(0,3.6,-32.6),Vector3(0,0.2,70))
+	# Separate interior on the same map, preserving network coordinates.
+	map_box("HallFloor",Vector3(0,0.1,70),Vector3(24,0.2,24),stone)
+	for x in [-12.0,12.0]:
+		map_box("HallWall",Vector3(x,4,70),Vector3(1,8,24),dark_stone)
+	for z in [58.0,82.0]:
+		map_box("HallWall",Vector3(0,4,z),Vector3(24,8,1),dark_stone)
+	for x in [-8.0,8.0]:
+		for z in [62.0,70.0,78.0]:
+			map_box("HallColumn",Vector3(x,4,z),Vector3(1.2,8,1.2),stone)
+	map_box("HallCeiling",Vector3(0,8,70),Vector3(24,0.5,24),dark_stone)
+	castle_portal(Vector3(0,2.6,80),Vector3(0,1.2,-29))
 	# Entrance gate in front of the courtyard.
 	for x in [-7.0,7.0]:
 		map_box("GatePost", Vector3(x,3.3,12.0), Vector3(1.25,6.5,1.25), red)
@@ -504,6 +478,105 @@ func create_valoria():
 	map_box("WelcomeSign", Vector3(0,1.5,17.0), Vector3(4.5,2.8,0.35), wood, false)
 	map_box("WelcomePlaque", Vector3(0,2.0,16.78), Vector3(3.6,0.8,0.12), gold, false)
 
+var castle_materials := {}
+var portal_lock_until := 0
+
+func castle_stone(color: Color) -> StandardMaterial3D:
+	if castle_materials.has(color):
+		return castle_materials[color]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.lightened(0.25)
+	mat.roughness = 0.95
+	var img := Image.create(256,256,false,Image.FORMAT_RGB8)
+	for y in range(256):
+		for x in range(256):
+			var row := y / 32
+			var bx := (x + (int(row) % 2)*32) % 64
+			var by := y % 32
+			var grain := float((x*17+y*31+x*y*3)%23)/100.0
+			var shade := 0.32 if bx < 2 or by < 2 else 0.64+grain
+			img.set_pixel(x,y,Color(shade,shade,shade))
+	img.generate_mipmaps()
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.65,0.65,0.65)
+	castle_materials[color] = mat
+	return mat
+
+func castle_tower(pos: Vector3, h: float, radius: float):
+	var shaft := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius
+	cylinder.bottom_radius = radius
+	cylinder.height = h
+	cylinder.radial_segments = 20
+	shaft.mesh = cylinder
+	shaft.material_override = castle_stone(Color("65717e"))
+	add_child(shaft)
+	shaft.position = pos + Vector3(0,h*0.5,0)
+	var roof := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.04
+	cone.bottom_radius = radius*1.25
+	cone.height = radius*3.0
+	cone.radial_segments = 20
+	roof.mesh = cone
+	roof.material_override = castle_stone(Color("273e59"))
+	add_child(roof)
+	roof.position = pos + Vector3(0,h+radius*1.5,0)
+	for i in range(6):
+		var angle := TAU*float(i)/6.0
+		map_box("TowerTrim",pos+Vector3(cos(angle)*radius,h-0.5,sin(angle)*radius),Vector3(0.6,1.2,0.6),Color("9b9383"),false)
+
+func castle_portal(pos: Vector3, destination: Vector3):
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 2.15
+	torus.outer_radius = 2.65
+	torus.rings = 32
+	torus.ring_segments = 12
+	ring.mesh = torus
+	ring.material_override = castle_stone(Color("65717e"))
+	add_child(ring)
+	ring.position = pos
+	ring.rotation_degrees.x = 90
+	var disc := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(4.3,4.3)
+	disc.mesh = quad
+	var shader := Shader.new()
+	shader.code = """shader_type spatial;
+render_mode unshaded, cull_disabled;
+void fragment(){
+ vec2 p=UV*2.0-1.0;
+ float r=length(p);
+ if(r>1.0){discard;}
+ float a=atan(p.y,p.x);
+ float wave=sin(a*12.0-r*22.0+TIME*2.0);
+ float rim=exp(-pow((r-0.87)*18.0,2.0));
+ ALBEDO=vec3(0.015,0.12,0.38)+vec3(0.15,0.65,1.0)*(rim+0.16*wave+0.18);
+}"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	disc.material_override = mat
+	add_child(disc)
+	disc.position = pos + Vector3(0,0,0.08)
+	var area := Area3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.1,5.2,1.4)
+	shape.shape = box
+	area.add_child(shape)
+	add_child(area)
+	area.position = pos
+	area.body_entered.connect(func(body: Node3D):
+		if body != player or Time.get_ticks_msec() < portal_lock_until:
+			return
+		portal_lock_until = Time.get_ticks_msec()+2000
+		player.set_deferred("position",destination)
+		player.velocity = Vector3.ZERO
+	)
+
 func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
 	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	body.name = label
@@ -515,7 +588,7 @@ func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bo
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.88
-	mesh.material_override = material
+	mesh.material_override = castle_stone(color) if label.begins_with("Castle") or label.begins_with("Hall") or label == "Battlement" else material
 	body.add_child(mesh)
 	if solid:
 		var collision := CollisionShape3D.new()
