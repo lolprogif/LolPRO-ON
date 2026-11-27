@@ -10,7 +10,7 @@ var distance := 4.2
 var jump_held := false
 var jumping := false
 const JUMP_GRAVITY := 10.0
-const JUMP_SPEED := 2.0
+const JUMP_SPEED := 4.0
 const JUMP_DURATION := 2.0 * JUMP_SPEED / JUMP_GRAVITY
 var yaw := 0.0
 var net: Node
@@ -19,6 +19,8 @@ var touch_dir := Vector2.ZERO
 var touch_run := false
 var touch_jump := false
 var attack_cooldown := 0.0
+var portal_guard: Node3D
+var portal_dialog: ConfirmationDialog
 func _ready():
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -135,7 +137,7 @@ func animate(state):
 		if not anim.is_empty():
 			var ap: AnimationPlayer = anim[0]
 			var desired := ""
-			var candidates := {"Idle":["Intro_wait","onehand_idle","Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","Run","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","FreeRunning"]}
+			var candidates := {"Idle":["Intro_wait","onehand_idle","Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","Run","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","jump","Idle","idle","Intro_wait"]}
 			for candidate in candidates.get(state,["FreeRunning"]):
 				if ap.has_animation(candidate):
 					desired = candidate
@@ -167,7 +169,10 @@ func animate(state):
 				break
 func _unhandled_input(event):
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		attack()
+		if not try_guard_click(event.position):
+			attack()
+	if event is InputEventScreenTouch and event.pressed:
+		try_guard_click(event.position)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * 0.003
 		pitch = clamp(pitch-event.relative.y*0.003,-1.2,0.15)
@@ -730,6 +735,7 @@ func create_portal_guard():
 	if guard == null:
 		return
 	add_child(guard)
+	portal_guard = guard
 	guard.position = Vector3(0.0,1.1,-28.0)
 	guard.rotation.y = 0.0
 	# Relax the Mixamo T-pose using local upper-arm bone rotations.
@@ -755,3 +761,26 @@ func create_portal_guard():
 	tag.position.y = 2.2
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	guard.add_child(tag)
+
+func try_guard_click(screen_pos: Vector2) -> bool:
+	if not is_instance_valid(portal_guard):
+		return false
+	var target := portal_guard.global_position + Vector3(0,0.9,0)
+	if camera.is_position_behind(target):
+		return false
+	if camera.unproject_position(target).distance_to(screen_pos) > 65.0:
+		return false
+	if player.global_position.distance_to(portal_guard.global_position) > 7.0:
+		return false
+	if not is_instance_valid(portal_dialog):
+		portal_dialog = ConfirmationDialog.new()
+		portal_dialog.title = "Guardião do Portal"
+		portal_dialog.dialog_text = "Escolha seu destino: Mapa dos Bosses"
+		portal_dialog.ok_button_text = "Mapa dos Bosses"
+		portal_dialog.cancel_button_text = "Fechar"
+		add_child(portal_dialog)
+		portal_dialog.confirmed.connect(func():
+			player.position = Vector3(70,0.65,70)
+			player.velocity = Vector3.ZERO)
+	portal_dialog.popup_centered(Vector2i(320,160))
+	return true
