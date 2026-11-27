@@ -1,7 +1,7 @@
 {
-  "android_url": "https://github.com/lolprogif/LolPRO-ON/releases/download/v0.9.528/LolPRO-ON.apk",
-  "status": "published",
-  "version": "0.9.528",
   "app": "LolPRO-ON",
-  "windows_url": "https://github.com/lolprogif/LolPRO-ON/releases/download/v0.9.528/LolPRO-ON-Windows.zip"
+  "status": "published",
+  "windows_url": "https://github.com/lolprogif/LolPRO-ON/releases/download/v0.9.527/LolPRO-ON-Windows.zip",
+  "android_url": "https://github.com/lolprogif/LolPRO-ON/releases/download/v0.9.528/LolPRO-ON.apk",
+  "version": "0.9.527"
 }
