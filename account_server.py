@@ -47,6 +47,7 @@ with connect_db() as db:
  db.execute('INSERT OR IGNORE INTO characters SELECT username,0,character FROM accounts WHERE character != ""')
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS progress (username TEXT, slot INTEGER, level INTEGER DEFAULT 1, xp INTEGER DEFAULT 0, coins INTEGER DEFAULT 100, potions INTEGER DEFAULT 5, weapon INTEGER DEFAULT 0, armor INTEGER DEFAULT 0, PRIMARY KEY(username,slot))')
+ db.execute('CREATE TABLE IF NOT EXISTS character_positions (username TEXT, slot INTEGER, x REAL, y REAL, z REAL, angle REAL, PRIMARY KEY(username,slot))')
  db.execute('CREATE TABLE IF NOT EXISTS session_slots (token TEXT PRIMARY KEY, slot INTEGER)')
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS gear (username TEXT, slot INTEGER, kind TEXT, equipped INTEGER DEFAULT 0, PRIMARY KEY(username,slot,kind))')
@@ -292,6 +293,8 @@ class Handler(BaseHTTPRequestHandler):
       own['gear']=gear
       own['ranks']=ranks
       own['item_seq']=me.get('item_seq','')
+      if me['hp']>0:
+       db.execute('INSERT OR REPLACE INTO character_positions VALUES(?,?,?,?,?,?)',(row[0],slot,*pos,angle))
       db.commit()
      return self.reply({'ok':True,'players':others,'self':own})
     elif self.path=='/character':
@@ -311,6 +314,9 @@ class Handler(BaseHTTPRequestHandler):
      db.execute('INSERT OR REPLACE INTO avatar_profiles VALUES(?,?,?)',(row[0],slot,avatar))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
+     location=db.execute('SELECT x,y,z,angle FROM character_positions WHERE username=? AND slot=?',(row[0],slot)).fetchone()
+     db.commit()
+     return self.reply({'ok':True,'position':list(location[:3]) if location else [0,0.65,0],'angle':location[3] if location else 0})
     else: raise ValueError('Unknown endpoint')
    self.reply({'ok':True})
   except integrity_errors: self.reply({'ok':False,'error':'Account already exists'})
