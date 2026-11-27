@@ -76,15 +76,19 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/lolpro-release.keystore"
             echo "release_signing=true" >> "$GITHUB_OUTPUT"
-            python3 - <<'PY'
-          from pathlib import Path
-          p=Path("export_presets.cfg")
-          s=p.read_text()
-          marker="[preset.0.options]"
-          if marker not in s: raise SystemExit("Preset Android não encontrado")
-          values='\nkeystore/release="/home/runner/.android/lolpro-release.keystore"\nkeystore/release_user="' + __import__("os").environ["KEY_ALIAS"] + '"\nkeystore/release_password="' + __import__("os").environ["KEY_PASSWORD"] + '"\n'
-          p.write_text(s.replace(marker, marker+values, 1))
-          PY
+            KS="$HOME/.android/lolpro-release.keystore"
+            if ! keytool -list -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+              echo "::error::A senha do arquivo ou o alias cadastrado não confere."
+              exit 1
+            fi
+            if ! keytool -certreq -keystore "$KS" -storepass:env KEYSTORE_PASSWORD -keypass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" -file "$RUNNER_TEMP/lolpro.csr" >/dev/null 2>&1; then
+              echo "::error::A chave privada não aceita a senha do arquivo. Godot exige senhas iguais."
+              exit 1
+            fi
+            echo "Assinatura existente validada."
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KS" >> "$GITHUB_ENV"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
           else
             echo "release_signing=false" >> "$GITHUB_OUTPUT"
             keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug"
