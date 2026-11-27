@@ -154,7 +154,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publicar APK assinado na Release
-        if: github.event_name == 'push' && steps.signing.outputs.release_signing == 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.release_signing == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -186,5 +186,5 @@ jobs:
           exit 1
 
       - name: Avisar que a chave de publicação Android ainda não foi configurada
-        if: github.event_name == 'push' && steps.signing.outputs.release_signing != 'true'
+        if: github.event_name != 'pull_request' && steps.signing.outputs.release_signing != 'true'
         run: echo "::warning::APK gerado apenas para teste com chave temporária. Configure os quatro secrets ANDROID_* para publicar atualizações Android que instalem sobre versões anteriores."
