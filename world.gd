@@ -617,6 +617,34 @@ void fragment(){
 	add_child(disc)
 	disc.position = pos + Vector3(0,0,0.08)
 	temple_light(pos + Vector3(0,0,1.5),Color("37baff"),2.0,9.0)
+	var arcs := MeshInstance3D.new()
+	var arc_quad := QuadMesh.new()
+	arc_quad.size = Vector2(7.5,7.5)
+	arcs.mesh = arc_quad
+	var arc_shader := Shader.new()
+	arc_shader.code = """shader_type spatial;
+render_mode unshaded, cull_disabled, blend_add, depth_draw_never;
+void fragment(){
+ vec2 p=UV*2.0-1.0;
+ float r=length(p);
+ float a=atan(p.y,p.x);
+ float t=floor(TIME*12.0);
+ float sector=floor((a+3.14159)*1.27324);
+ float seed=fract(sin(sector*73.13+t*17.71)*43758.5453);
+ float angle=(sector+0.5)*0.785398-3.14159;
+ float zig=sin(r*65.0+seed*20.0)*0.035+sin(r*112.0+t)*0.015;
+ float dist=abs(a-angle-zig);
+ float arc=exp(-dist*180.0)*step(0.68,r)*step(r,0.76+seed*0.22)*step(0.35,seed);
+ float sparks=pow(max(0.0,sin(a*43.0+t*2.0)*sin(r*93.0-t)),24.0)*step(0.69,r)*step(r,0.98);
+ ALBEDO=vec3(0.25,0.7,1.0);
+ EMISSION=vec3(0.55,0.85,1.0)*(arc*2.0+sparks);
+ ALPHA=clamp(arc+sparks,0.0,1.0);
+}"""
+	var arc_mat := ShaderMaterial.new()
+	arc_mat.shader = arc_shader
+	arcs.material_override = arc_mat
+	add_child(arcs)
+	arcs.position = pos + Vector3(0,0,0.15)
 	var area := Area3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
