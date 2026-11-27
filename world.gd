@@ -116,7 +116,7 @@ func animate(state):
 		if not anim.is_empty():
 			var ap: AnimationPlayer = anim[0]
 			var desired := ""
-			var candidates := {"Idle":["Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","FreeRunning"]}
+			var candidates := {"Idle":["Intro_wait","onehand_idle","Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","Run","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","FreeRunning"]}
 			for candidate in candidates.get(state,["FreeRunning"]):
 				if ap.has_animation(candidate):
 					desired = candidate
@@ -419,11 +419,11 @@ func create_valoria():
 	# Entrance stairs.
 	# Decorative steps sit over a continuous walkable ramp; they do not block the player.
 	for i in range(5):
-		map_box("TempleStep", Vector3(0,0.11+float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
+		map_box("TempleStep", Vector3(0,1.1-float(i)*0.22,-31.9+float(i)*1.0), Vector3(13.0-float(i)*0.8,0.22,1.0), dark_stone, false)
 	var ramp_body := StaticBody3D.new()
 	ramp_body.name = "TempleAccessRamp"
-	ramp_body.position = Vector3(0,0.55,-29.5)
-	ramp_body.rotation.x = atan(1.1/6.0)
+	ramp_body.position = Vector3(0,0.45,-23.5)
+	ramp_body.rotation.x = -atan(1.1/6.0)
 	var ramp_collision := CollisionShape3D.new()
 	var ramp_shape := BoxShape3D.new()
 	ramp_shape.size = Vector3(12.0,0.22,6.0)
@@ -439,7 +439,7 @@ func create_valoria():
 		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
 		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
 	# Blue walk-through portal in the original temple.
-	castle_portal(Vector3(0,3.6,-39.2),Vector3(0,0.2,70))
+	castle_portal(Vector3(0,3.6,-38.4),Vector3(0,0.2,70))
 	for x in [-8.0,-4.0,4.0,8.0]:
 		temple_lantern(Vector3(x,3.1,-27.5))
 	for x in [-5.0,5.0]:
