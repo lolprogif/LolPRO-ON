@@ -57,6 +57,8 @@ with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS class_profiles (username TEXT, slot INTEGER, class TEXT, gender TEXT, PRIMARY KEY(username,slot))')
 with connect_db() as db:
  db.execute("CREATE TABLE IF NOT EXISTS avatar_profiles (username TEXT, slot INTEGER, avatar TEXT DEFAULT 'whiteclown', PRIMARY KEY(username,slot))")
+ db.execute("UPDATE avatar_profiles SET avatar='whiteclown' WHERE avatar IN ('erika_archer','maria')")
+ db.execute("UPDATE class_profiles SET gender='Masculino' WHERE gender='Feminino'")
 with connect_db() as db:
  db.execute('CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, permissions TEXT)')
  db.execute('CREATE TABLE IF NOT EXISTS admin_audit (username TEXT, command TEXT, created INTEGER)')
@@ -323,11 +325,11 @@ class Handler(BaseHTTPRequestHandler):
      existing=db.execute('SELECT name FROM characters WHERE username=? AND slot=?',(row[0],slot)).fetchone()
      if existing and existing[0]!=name: raise ValueError('Slot already occupied')
      cl='Aventureiro'; gender=d.get('gender','Masculino')
-     if gender not in ('Masculino','Feminino'): raise ValueError('Invalid gender')
+     if gender != 'Masculino': raise ValueError('Apenas personagens masculinos estão disponíveis.')
      db.execute('INSERT OR IGNORE INTO characters VALUES(?,?,?)',(row[0],slot,name))
      db.execute('INSERT OR IGNORE INTO class_profiles VALUES(?,?,?,?)',(row[0],slot,cl,gender))
      avatar=str(d.get('avatar','whiteclown'))
-     if avatar not in ('whiteclown','erika_archer','maria','sura','warrior_m'): raise ValueError('Invalid avatar')
+     if avatar not in ('whiteclown','sura','warrior_m'): raise ValueError('Personagem indisponível.')
      db.execute('INSERT OR REPLACE INTO avatar_profiles VALUES(?,?,?)',(row[0],slot,avatar))
      db.execute('UPDATE accounts SET character=? WHERE username=?',(name,row[0]))
      db.execute('INSERT OR REPLACE INTO session_slots VALUES(?,?)',(str(d.get('token','')),slot))
