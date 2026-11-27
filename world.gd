@@ -7,6 +7,9 @@ var player := CharacterBody3D.new()
 var pivot := Node3D.new()
 var camera := Camera3D.new()
 var models := {}
+var brute_motion_paths := {}
+var using_brute := false
+var brute_attack_index := 0
 var current := ""
 var admin_animation_until: int = 0
 var pitch := -0.25
@@ -99,29 +102,17 @@ func _ready():
 				models[state] = model
 	else:
 		if avatar_id == "sura":
-			# Brute: cada FBX contém a malha e a animação correspondente.
-			# Mantemos apenas um modelo visível por vez para evitar duplicar o personagem.
-			var motion_files := {
+			# Carrega somente o Idle na entrada. Os demais FBX são carregados
+			# sob demanda para evitar uma tela cinza durante a entrada no mundo.
+			using_brute = true
+			brute_motion_paths = {
 				"Idle":"Idle.fbx",
 				"Walking":"Walking.fbx",
 				"Running":"Running.fbx",
 				"Attack1":"Sword And Shield Slash.fbx",
 				"Attack2":"Stable Sword Outward Slash.fbx"
 			}
-			for motion in motion_files:
-				var motion_path := "res://assets/" + str(motion_files[motion])
-				var motion_scene = load(motion_path)
-				if motion_scene is PackedScene:
-					var motion_model := motion_scene.instantiate() as Node3D
-					if motion_model:
-						player.add_child(motion_model)
-						motion_model.name = "Brute_" + motion
-						motion_model.visible = false
-						models[motion] = motion_model
-				else:
-					push_warning("Animação do Brute não importada: " + motion_path)
-			if models.has("Idle"):
-				models["Idle"].visible = true
+			ensure_brute_motion("Idle")
 		else:
 			var custom_path: String = "res://assets/Character.fbx"
 			var avatar_scene = load(custom_path)
@@ -145,6 +136,25 @@ func _ready():
 	net = preload("res://network.gd").new()
 	net.world = self
 	add_child(net)
+func ensure_brute_motion(state: String) -> bool:
+	if models.has(state):
+		return true
+	if not brute_motion_paths.has(state):
+		return false
+	var motion_path := "res://assets/" + str(brute_motion_paths[state])
+	var motion_scene = load(motion_path)
+	if not motion_scene is PackedScene:
+		push_warning("Animação do Brute não importada: " + motion_path)
+		return false
+	var motion_model := motion_scene.instantiate() as Node3D
+	if motion_model == null:
+		return false
+	player.add_child(motion_model)
+	motion_model.name = "Brute_" + state
+	motion_model.visible = false
+	models[state] = motion_model
+	return true
+
 func preview_admin_animation(state: String):
 	admin_animation_until = 0
 	current = ""
@@ -181,6 +191,9 @@ func animate(state):
 				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				ap.play(desired)
 		return
+	if using_brute and not models.has(state):
+		if not ensure_brute_motion(state):
+			state = "Idle"
 	if not models.has(state):
 		if state == "Jumping" and models.has("Idle"):
 			state = "Idle"
@@ -291,8 +304,9 @@ func attack():
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0: return
 	attack_cooldown = 0.6
 	if free_combat and is_instance_valid(net): net.request_attack()
-	if models.has("Attack1") and models.has("Attack2"):
-		var next_attack := "Attack1" if (int(Time.get_ticks_msec() / 600) % 2 == 0) else "Attack2"
+	if using_brute:
+		brute_attack_index += 1
+		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
 		animate(next_attack)
 		admin_animation_until = Time.get_ticks_msec() + 580
 		var attack_state := next_attack
