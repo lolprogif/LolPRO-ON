@@ -4,7 +4,7 @@ var mic := AudioStreamPlayer.new()
 var capture := AudioEffectCapture.new()
 var req := HTTPRequest.new()
 var enabled := false
-var listening := false
+var listening := true
 var busy := false
 var elapsed := 0.0
 var label_status: Label
@@ -27,6 +27,7 @@ func _ready():
 	mic_button = hud.button(panel,"Ligar microfone",toggle_mic)
 	var listen := CheckButton.new()
 	listen.text = "Ouvir jogadores próximos"
+	listen.button_pressed = listening
 	panel.add_child(listen)
 	listen.toggled.connect(func(on: bool):
 		listening = on
@@ -68,7 +69,11 @@ func _ready():
 	bus_index = AudioServer.bus_count-1
 	AudioServer.set_bus_name(bus_index,"VoiceCapture")
 	AudioServer.add_bus_effect(bus_index,capture)
-	AudioServer.set_bus_mute(bus_index,true)
+	AudioServer.set_bus_mute(bus_index,false)
+	AudioServer.set_bus_send(bus_index,"Master")
+	var silence := AudioEffectAmplify.new()
+	silence.volume_db = -80.0
+	AudioServer.add_bus_effect(bus_index,silence)
 	mic.bus = "VoiceCapture"
 	mic.stream = AudioStreamMicrophone.new()
 	add_child(mic)
@@ -128,7 +133,11 @@ func _process(delta):
 	busy = req.request(net.cloud_url+"/voice",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload)) == OK
 func received(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
 	busy = false
-	if not listening or not net.cloud_active or result != HTTPRequest.RESULT_SUCCESS or code != 200: return
+	if not net.cloud_active: return
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		label_status.text = "Falha na conexão de voz ("+str(code)+")"
+		return
+	if not listening: return
 	var data = JSON.parse_string(body.get_string_from_utf8())
 	if not data is Dictionary or not data.get("ok",false): return
 	for packet in data.get("packets",[]):
