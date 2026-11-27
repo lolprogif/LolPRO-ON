@@ -745,6 +745,7 @@ func build_preview(parent: VBoxContainer):
 	preview_camera = Camera3D.new()
 	preview_stage.add_child(preview_camera)
 	preview_camera.position = Vector3(0,1.2,2.7)
+	preview_camera.fov = 48.0
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
@@ -755,7 +756,7 @@ func play_preview(state: String):
 		preview_stage.add_child(preview_actor)
 		preview_actor.call("set_motion", state)
 		return
-	var model_file: String = str({"whiteclown":"Character.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
+	var model_file: String = str({"whiteclown":"Idle.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
 	var custom_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
 	if not scene is PackedScene:
