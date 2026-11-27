@@ -33,10 +33,17 @@ func part(parent: Node3D, pos: Vector3, dims: Vector3, tint: Color, rounded: boo
 
 func _ready():
 	show()
-	part(self,Vector3(0,1.16,0),Vector3(0.52,0.58,0.32),armor,true)
+	part(self,Vector3(0,1.16,0),Vector3(0.46,0.64,0.29),armor,true)
 	part(self,Vector3(0,0.91,0),Vector3(0.46,0.13,0.34),gold)
 	part(self,Vector3(0,1.65,0),Vector3(0.29,0.35,0.28),skin,true)
 	part(self,Vector3(0,1.79,0),Vector3(0.33,0.20,0.31),Color("e4e6ef"),true)
+	for side in [-1.0,1.0]:
+		part(self,Vector3(side*0.057,1.67,0.127),Vector3(0.047,0.025,0.025),Color("e8e3db"),true)
+		part(self,Vector3(side*0.057,1.67,0.143),Vector3(0.018,0.020,0.012),Color("302b29"),true)
+		part(self,Vector3(side*0.057,1.70,0.127),Vector3(0.058,0.012,0.018),Color("68636a"))
+	part(self,Vector3(0,1.63,0.14),Vector3(0.04,0.06,0.045),skin,true)
+	part(self,Vector3(0,1.58,0.12),Vector3(0.065,0.014,0.02),Color("79554e"),true)
+	part(self,Vector3(0,1.46,0),Vector3(0.14,0.15,0.15),skin,true)
 	for i in range(5):
 		var tuft := part(self,Vector3(-0.12+i*0.06,1.88,-0.02),Vector3(0.08,0.19,0.11),Color("e4e6ef"),true)
 		tuft.rotation.z = -0.3
@@ -44,7 +51,7 @@ func _ready():
 		var arm := Node3D.new()
 		add_child(arm)
 		arm.position = Vector3(side*0.34,1.39,0)
-		part(arm,Vector3(0,-0.04,0),Vector3(0.27,0.23,0.33),gold,true)
+		part(arm,Vector3(0,-0.04,0),Vector3(0.22,0.16,0.27),gold,true)
 		part(arm,Vector3(0,-0.28,0),Vector3(0.16,0.43,0.19),armor,true)
 		part(arm,Vector3(0,-0.48,0),Vector3(0.14,0.17,0.15),skin,true)
 		limbs.append(arm)
@@ -53,9 +60,9 @@ func _ready():
 		leg.position = Vector3(side*0.14,0.86,0)
 		part(leg,Vector3(0,-0.32,0),Vector3(0.21,0.68,0.23),armor,true)
 		part(leg,Vector3(0,-0.39,0.10),Vector3(0.19,0.19,0.08),gold,true)
-		part(leg,Vector3(0,-0.77,0.05),Vector3(0.23,0.18,0.33),armor)
+		part(leg,Vector3(0,-0.77,0.05),Vector3(0.19,0.15,0.28),armor)
 		limbs.append(leg)
-	part(self,Vector3(0,0.68,0.18),Vector3(0.20,0.48,0.05),Color("791e29"))
+	part(self,Vector3(0,0.68,0.18),Vector3(0.15,0.36,0.035),Color("791e29"))
 	var sword := part(self,Vector3(0,1.03,-0.25),Vector3(0.10,1.20,0.06),gold)
 	sword.rotation.z = 0.48
 
