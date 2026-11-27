@@ -105,7 +105,6 @@ func _ready():
 				"Idle":"Idle.fbx",
 				"Walking":"Walking.fbx",
 				"Running":"Running.fbx",
-				"Jumping":"Jumping.fbx",
 				"Attack1":"Sword And Shield Slash.fbx",
 				"Attack2":"Stable Sword Outward Slash.fbx"
 			}
@@ -295,6 +294,7 @@ func attack():
 	if models.has("Attack1") and models.has("Attack2"):
 		var next_attack := "Attack1" if (int(Time.get_ticks_msec() / 600) % 2 == 0) else "Attack2"
 		animate(next_attack)
+		admin_animation_until = Time.get_ticks_msec() + 580
 		var attack_state := next_attack
 		get_tree().create_timer(0.58).timeout.connect(func():
 			if current == attack_state:
