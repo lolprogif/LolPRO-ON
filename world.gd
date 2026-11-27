@@ -109,6 +109,7 @@ func _ready():
 				"Idle":"Idle.fbx",
 				"Walking":"Walking.fbx",
 				"Running":"Running.fbx",
+				"Jumping":"Jumping.fbx",
 				"Attack1":"Sword And Shield Slash.fbx",
 				"Attack2":"Stable Sword Outward Slash.fbx"
 			}
@@ -243,7 +244,6 @@ func _physics_process(delta):
 	direction = direction.normalized().rotated(Vector3.UP,yaw)
 	if direction.length()>0.01:
 		click_moving = false
-		combat_target = null
 	elif click_moving:
 		if is_instance_valid(combat_target): click_destination = combat_target.global_position
 		var offset := click_destination-player.global_position
@@ -297,13 +297,46 @@ func remove_horizontal_motion(ap: AnimationPlayer, clip: String, lock_vertical: 
 				value.y = initial.y
 			anim.track_set_key_value(track, key, value)
 
+func acquire_nearby_target(max_distance: float = 7.0) -> Node3D:
+	var candidates: Array = get_tree().get_nodes_in_group("attackable")
+	if free_combat and is_instance_valid(net):
+		for entry in net.remotes.values():
+			if entry is Dictionary and is_instance_valid(entry.get("node")):
+				candidates.append(entry.node)
+	var best: Node3D = null
+	var best_distance := max_distance
+	for candidate in candidates:
+		if not candidate is Node3D or candidate == player or not is_instance_valid(candidate):
+			continue
+		var offset: Vector3 = candidate.global_position - player.global_position
+		offset.y = 0.0
+		var distance_to_target := offset.length()
+		if distance_to_target < best_distance:
+			best_distance = distance_to_target
+			best = candidate
+	return best
+
 func attack():
-	if not free_combat and not is_instance_valid(combat_target): return
 	if attack_cooldown > 0.0 or get_viewport().gui_get_focus_owner() is LineEdit:
 		return
-	if is_instance_valid(net) and net.cloud_active and net.health <= 0: return
+	if is_instance_valid(net) and net.cloud_active and net.health <= 0:
+		return
+	if not is_instance_valid(combat_target):
+		combat_target = acquire_nearby_target()
+	if not is_instance_valid(combat_target):
+		return
+	var target_offset: Vector3 = combat_target.global_position - player.global_position
+	target_offset.y = 0.0
+	var target_distance := target_offset.length()
+	if target_distance > 2.15:
+		click_destination = combat_target.global_position
+		click_moving = true
+		return
+	if target_distance > 0.05:
+		player.rotation.y = atan2(target_offset.x,target_offset.z)
 	attack_cooldown = 0.6
-	if free_combat and is_instance_valid(net): net.request_attack()
+	if free_combat and is_instance_valid(net):
+		net.request_attack()
 	if using_brute:
 		brute_attack_index += 1
 		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
@@ -316,11 +349,8 @@ func attack():
 				animate("Idle")
 		)
 	attack_effect(player)
-	for target in get_tree().get_nodes_in_group("attackable"):
-		if target is Node3D and target.has_method("take_damage"):
-			var offset: Vector3 = target.global_position - player.global_position
-			if offset.length() <= 2.0 and offset.normalized().dot(player.global_transform.basis.z.normalized()) > 0.3:
-				target.take_damage(10)
+	if combat_target.has_method("take_damage"):
+		combat_target.take_damage(10)
 
 func attack_effect(actor: Node3D):
 	punch_pose(actor)
