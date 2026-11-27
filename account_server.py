@@ -235,11 +235,11 @@ class Handler(BaseHTTPRequestHandler):
       me['max_hp']=100+ph
       if me['hp']>0: me['hp']=max(1,min(me['max_hp'],me['hp']+me['max_hp']-old_max))
       me['pet'].update(attack=pa,defense=pd,life=ph)
-      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now)
+      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now,free_combat=d.get('free_combat') is True)
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
        me['attack_seq']=seq
-       if me['hp']>0 and now-me['last_attack']>=0.6:
+       if me['hp']>0 and me.get('free_combat',False) and now-me['last_attack']>=0.6:
         me['last_attack']=now
         for key,target in players.items():
          if key==row[0] or target['hp']<=0: continue
@@ -270,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
          me['hp']=min(me.get('max_hp',100),me['hp']+30)
         else:
          for key,target in players.items():
-          if key!=row[0] and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
+          if me.get('free_combat',False) and key!=row[0] and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
            target['hp']=max(0,target['hp']-max(1,15+idx*4+pa-pet_bonuses(target.get('pet',{}))[1]))
            if target['hp']==0: target['respawn_at']=now+3
       potion=str(d.get('potion',''))[:80]
