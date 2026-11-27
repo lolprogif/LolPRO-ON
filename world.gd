@@ -66,6 +66,12 @@ func _ready():
 	ground.add_child(floor_shape)
 	add_child(player)
 	player.position.y = 0.65
+	if get_tree().has_meta("online_token") and get_tree().has_meta("saved_world_position"):
+		var saved: Array = get_tree().get_meta("saved_world_position")
+		if saved.size() == 3:
+			player.position = Vector3(float(saved[0]),float(saved[1]),float(saved[2]))
+			player.rotation.y = float(get_tree().get_meta("saved_world_angle",0.0))
+		get_tree().remove_meta("saved_world_position")
 	player.floor_snap_length = 0.45
 	var col := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
