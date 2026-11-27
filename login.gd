@@ -670,11 +670,13 @@ func show_selection(items: Array, legacy: String):
 
 func start_loading():
 	if is_instance_valid(preview_actor):
-		play_preview("Walking")
-		var cinematic := create_tween().set_parallel(true)
-		cinematic.tween_property(preview_actor,"position:z",1.1,2.0)
-		cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),2.0)
-		await cinematic.finished
+		if play_preview("Walking"):
+			var cinematic := create_tween().set_parallel(true)
+			cinematic.tween_property(preview_actor,"position:z",1.1,2.0)
+			cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),2.0)
+			await cinematic.finished
+		else:
+			play_preview("Idle")
 	selection.hide()
 	fade = ColorRect.new()
 	fade.color = Color("101b29")
@@ -764,13 +766,13 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
-func play_preview(state: String):
-	var model_file: String = str({"whiteclown":"Idle.fbx","erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
+func play_preview(state: String) -> bool:
+	var model_file: String = str({"whiteclown":("Walking.fbx" if state == "Walking" else "Idle.fbx"),"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(preview_avatar,"Character.fbx"))
 	var custom_path: String = str({"sura":"res://sura_male_novice.glb"}.get(preview_avatar,"res://assets/"+model_file))
 	var scene = load(custom_path)
 	if not scene is PackedScene:
 		push_warning("Modelo de personagem não importado: "+model_file)
-		return
+		return false
 	if is_instance_valid(preview_actor): preview_actor.queue_free()
 	preview_actor = scene.instantiate() as Node3D
 	preview_stage.add_child(preview_actor)
@@ -778,9 +780,13 @@ func play_preview(state: String):
 		var ap: AnimationPlayer = node
 		for clip in ap.get_animation_list():
 			if clip == "RESET": continue
+			var clip_name := String(clip).to_lower()
+			if state == "Walking" and preview_avatar != "whiteclown" and not ("walk" in clip_name or "walking" in clip_name):
+				continue
 			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 			ap.play(clip)
-			break
+			return true
+	return false
 
 func rotate_preview(degrees: float):
 	if is_instance_valid(preview_actor):
