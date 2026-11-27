@@ -297,6 +297,7 @@ func attack():
 		admin_animation_until = Time.get_ticks_msec() + 580
 		var attack_state := next_attack
 		get_tree().create_timer(0.58).timeout.connect(func():
+			admin_animation_until = 0
 			if current == attack_state:
 				animate("Idle")
 	attack_effect(player)
