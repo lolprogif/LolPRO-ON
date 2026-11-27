@@ -98,15 +98,14 @@ func _ready():
 				model.hide()
 				models[state] = model
 	else:
-		var avatar_file: String = str({"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx"))
-		var custom_path: String = str({"sura":"res://assets/Brute.fbx"}.get(avatar_id,"res://assets/"+avatar_file))
+		var custom_path: String = "res://assets/Brute.fbx" if avatar_id == "sura" else "res://assets/Character.fbx"
 		var avatar_scene = load(custom_path)
 		if avatar_scene is PackedScene:
 			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
 			player.add_child(avatar_model)
 			models["Avatar"] = avatar_model
 		else:
-			push_error("Modelo não importado: "+avatar_file)
+			push_error("Modelo não importado: "+custom_path)
 	if models.is_empty():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
