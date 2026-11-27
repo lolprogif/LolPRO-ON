@@ -115,85 +115,66 @@ func _ready():
 	map_button.offset_top = 182
 	map_button.offset_bottom = 214
 
-	# Bottom action dock: life/mana/EXP, skill slots, then compact menu icons.
-	var bottom := PanelContainer.new()
+	# Rebuilt from Merlis2 taskbar.py: left gauges, central quickbar, right menu.
+	var bottom := Control.new()
 	root.add_child(bottom)
 	bottom.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	bottom.offset_left = -310
-	bottom.offset_right = 310
-	bottom.offset_top = -104
-	bottom.offset_bottom = -8
-	bottom.add_theme_stylebox_override("panel", merlis_box("res://taskbar/taskbar_base.png"))
-	var dock := HBoxContainer.new()
-	dock.alignment = BoxContainer.ALIGNMENT_CENTER
-	dock.add_theme_constant_override("separation",4)
-	bottom.add_child(dock)
-
-	var vitals := PanelContainer.new()
-	vitals.custom_minimum_size = Vector2(140,70)
-	dock.add_child(vitals)
-	vitals.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
-	var stats := VBoxContainer.new()
-	stats.add_theme_constant_override("separation",2)
-	vitals.add_child(stats)
-	var hp_row := HBoxContainer.new()
-	stats.add_child(hp_row)
-	globe_icon(hp_row,"res://png/hud_bars_globes/globe_preview_hp.png")
-	hp_bar = bar(hp_row,hp,Color("d04455"))
-	var mp_row := HBoxContainer.new()
-	stats.add_child(mp_row)
-	globe_icon(mp_row,"res://png/hud_bars_globes/globe_preview_mp.png")
-	mana_bar = bar(mp_row,100,Color("428bd8"))
-	xp_bar = bar(stats,0,Color("d9b45d"))
-	wallet_label = label(stats,"100 moedas  •  5 poções")
-
-	var skill_panel := PanelContainer.new()
-	skill_panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
-	skill_panel.custom_minimum_size.x = 150
-	dock.add_child(skill_panel)
-	var skills := HBoxContainer.new()
-	skills.alignment = BoxContainer.ALIGNMENT_CENTER
-	skills.add_theme_constant_override("separation",5)
-	skill_panel.add_child(skills)
-	for i in range(6):
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom.size = Vector2(850,84)
+	var fit_dock := func():
+		var factor := minf(1.0,root.size.x/850.0)
+		bottom.scale = Vector2.ONE*factor
+		bottom.position = Vector2((root.size.x-850.0*factor)/2.0,root.size.y-84.0*factor)
+	root.resized.connect(fit_dock)
+	fit_dock.call()
+	merlis_image(bottom,"res://taskbar/taskbar_base.png",Vector2(0,49),Vector2(850,35))
+	merlis_image(bottom,"res://taskbar/taskbar_left.png",Vector2(0,20),Vector2(237,64))
+	merlis_image(bottom,"res://taskbar/taskbar_center.png",Vector2(237,25),Vector2(411,59))
+	hp_bar = bar(bottom,hp,Color("d04455"))
+	hp_bar.position = Vector2(59,45)
+	hp_bar.size = Vector2(174,14)
+	mana_bar = bar(bottom,100,Color("428bd8"))
+	mana_bar.position = Vector2(55,59)
+	mana_bar.size = Vector2(170,14)
+	xp_bar = bar(bottom,0,Color("d9b45d"))
+	xp_bar.position = Vector2(248,75)
+	xp_bar.size = Vector2(393,9)
+	wallet_label = label(bottom,"100 moedas  •  5 poções")
+	wallet_label.position = Vector2(10,0)
+	for i in range(8):
 		var slot := Button.new()
-		slot.text = str(i+1)
-		slot.tooltip_text = "Habilidade %d" % (i+1)
-		slot.custom_minimum_size = Vector2(28,28)
+		slot.text = str(i+1) if i<4 else "F"+str(i-3)
+		slot.tooltip_text = "Espaço de habilidade"
 		slot.focus_mode = Control.FOCUS_NONE
-		var slot_style := StyleBoxTexture.new()
-		slot_style.texture = preload("res://inventory/slot_base.png")
-		slot.add_theme_stylebox_override("normal",slot_style)
-		skills.add_child(slot)
-
-	var menu_panel := PanelContainer.new()
-	dock.add_child(menu_panel)
-	menu_panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
-	var menu := GridContainer.new()
-	menu.columns = 6
-	menu.add_theme_constant_override("separation",2)
-	menu_panel.add_child(menu)
-	var menu_items := [
-		["🧪","Poção"],["♟","Personagem"],["▣","Inventário"],["✦","Especial"],
-		["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"],["♧","Amigos"],
-		["◎","Grupo"],["▤","Loja"],["⚙","Opções"]
-	]
-	for item in menu_items:
-		var glyph: String = item[0]
+		slot.flat = true
+		bottom.add_child(slot)
+		slot.position = Vector2(301+35*i+(8 if i>=4 else 0),40)
+		slot.size = Vector2(32,32)
+	var menu := HBoxContainer.new()
+	bottom.add_child(menu)
+	menu.position = Vector2(660,49)
+	menu.add_theme_constant_override("separation",3)
+	for item in [["Personagem","character"],["Inventário","inventory"],["Amigos","community"],["Opções","system"]]:
+		var n: String = item[0]
+		var icon_button := TextureButton.new()
+		icon_button.texture_normal = load("res://taskbar/bottons/"+item[1]+"_button_01.png") as Texture2D
+		icon_button.texture_hover = load("res://taskbar/bottons/"+item[1]+"_button_02.png") as Texture2D
+		icon_button.texture_pressed = load("res://taskbar/bottons/"+item[1]+"_button_03.png") as Texture2D
+		icon_button.ignore_texture_size = true
+		icon_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		icon_button.custom_minimum_size = Vector2(32,32)
+		icon_button.tooltip_text = n
+		menu.add_child(icon_button)
+		icon_button.pressed.connect(func(): toggle(n))
+	var extras := HBoxContainer.new()
+	bottom.add_child(extras)
+	extras.position = Vector2(245,0)
+	for item in [["🧪","Poção"],["✦","Especial"],["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"],["◎","Grupo"],["▤","Loja"]]:
 		var n: String = item[1]
-		var action := func():
-			if n == "Poção":
-				use_potion()
-			else:
-				toggle(n)
-		var b := button(menu,glyph,action)
-		b.tooltip_text = n
-		var icons := {"Personagem":"character","Inventário":"inventory","Amigos":"community","Opções":"system"}
-		if icons.has(n):
-			b.icon = load("res://taskbar/bottons/"+str(icons[n])+"_button_01.png") as Texture2D
-			b.expand_icon = true
-			b.text = ""
-		b.custom_minimum_size = Vector2(24,32)
+		var extra := button(extras,item[0],func():
+			if n == "Poção": use_potion()
+			else: toggle(n))
+		extra.tooltip_text = n
 
 	var attack_button := Button.new()
 	attack_button.text = "⚔ ATACAR" if OS.has_feature("mobile") else "⚔ ATACAR"
@@ -228,12 +209,12 @@ func _ready():
 		entry.release_focus()
 		cp.hide())
 	cp.hide()
-	var chat_button := button(menu,"☰",func():
+	var chat_button := button(extras,"☰",func():
 		cp.visible = not cp.visible
 		if cp.visible:
 			entry.grab_focus())
 	chat_button.tooltip_text = "Chat"
-	chat_button.custom_minimum_size = Vector2(32,54)
+	chat_button.custom_minimum_size = Vector2(32,32)
 
 	var inv := window("Inventário",Vector2(300,440),true)
 	label(inv,"Equipamentos iniciais")
@@ -340,7 +321,8 @@ func button(parent: Node, value: String, action: Callable) -> Button:
 	return b
 func bar(parent: Node, value: int, color: Color) -> ProgressBar:
 	var b := ProgressBar.new()
-	b.custom_minimum_size = Vector2(110,12)
+	b.custom_minimum_size = Vector2(0,0)
+	b.add_theme_stylebox_override("background",StyleBoxEmpty.new())
 	b.show_percentage = false
 	b.value = value
 	var texture_path := "res://taskbar/gauge_hp.png"
@@ -643,3 +625,12 @@ func merlis_box(path: String) -> StyleBoxTexture:
 	for side in [SIDE_LEFT,SIDE_RIGHT,SIDE_TOP,SIDE_BOTTOM]:
 		sb.set_content_margin(side,4.0)
 	return sb
+
+func merlis_image(parent: Control, path: String, pos: Vector2, dimensions: Vector2):
+	var image := TextureRect.new()
+	image.texture = load(path) as Texture2D
+	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(image)
+	image.position = pos
+	image.size = dimensions
