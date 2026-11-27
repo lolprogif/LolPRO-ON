@@ -98,14 +98,40 @@ func _ready():
 				model.hide()
 				models[state] = model
 	else:
-		var custom_path: String = "res://assets/Brute.fbx" if avatar_id == "sura" else "res://assets/Character.fbx"
-		var avatar_scene = load(custom_path)
-		if avatar_scene is PackedScene:
-			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
-			player.add_child(avatar_model)
-			models["Avatar"] = avatar_model
+		if avatar_id == "sura":
+			# Brute: cada FBX contém a malha e a animação correspondente.
+			# Mantemos apenas um modelo visível por vez para evitar duplicar o personagem.
+			var motion_files := {
+				"Idle":"Idle.fbx",
+				"Walking":"Walking.fbx",
+				"Running":"Running.fbx",
+				"Jumping":"Jumping.fbx",
+				"Attack1":"Sword And Shield Slash.fbx",
+				"Attack2":"Stable Sword Outward Slash.fbx"
+			}
+			for motion in motion_files:
+				var motion_path := "res://assets/" + str(motion_files[motion])
+				var motion_scene = load(motion_path)
+				if motion_scene is PackedScene:
+					var motion_model := motion_scene.instantiate() as Node3D
+					if motion_model:
+						player.add_child(motion_model)
+						motion_model.name = "Brute_" + motion
+						motion_model.visible = false
+						models[motion] = motion_model
+				else:
+					push_warning("Animação do Brute não importada: " + motion_path)
+			if models.has("Idle"):
+				models["Idle"].visible = true
 		else:
-			push_error("Modelo não importado: "+custom_path)
+			var custom_path: String = "res://assets/Character.fbx"
+			var avatar_scene = load(custom_path)
+			if avatar_scene is PackedScene:
+				var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
+				player.add_child(avatar_model)
+				models["Avatar"] = avatar_model
+			else:
+				push_error("Modelo não importado: "+custom_path)
 	if models.is_empty():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
@@ -156,16 +182,22 @@ func animate(state):
 				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				ap.play(desired)
 		return
-	if not models.has(state): return
+	if not models.has(state):
+		if state == "Jumping" and models.has("Idle"):
+			state = "Idle"
+		else:
+			return
 	for key in models:
-		models[key].visible = key == state
-	var model = models[state]
+		if models[key] is Node3D:
+			models[key].visible = key == state
+	var model: Node3D = models[state]
 	var anim = model.find_children("*","AnimationPlayer",true,false)
 	if not anim.is_empty():
-		var ap = anim[0]
+		var ap: AnimationPlayer = anim[0]
 		for clip in ap.get_animation_list():
 			if clip != "RESET":
-				ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
+				var one_shot := state == "Jumping" or state == "Attack1" or state == "Attack2"
+				ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if one_shot else Animation.LOOP_LINEAR
 				remove_horizontal_motion(ap, clip, state == "Jumping")
 				ap.stop()
 				ap.play(clip)
@@ -260,6 +292,13 @@ func attack():
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0: return
 	attack_cooldown = 0.6
 	if free_combat and is_instance_valid(net): net.request_attack()
+	if models.has("Attack1") and models.has("Attack2"):
+		var next_attack := "Attack1" if (int(Time.get_ticks_msec() / 600) % 2 == 0) else "Attack2"
+		animate(next_attack)
+		var attack_state := next_attack
+		get_tree().create_timer(0.58).timeout.connect(func():
+			if current == attack_state:
+				animate("Idle")
 	attack_effect(player)
 	for target in get_tree().get_nodes_in_group("attackable"):
 		if target is Node3D and target.has_method("take_damage"):
