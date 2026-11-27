@@ -4,6 +4,7 @@ var pivot := Node3D.new()
 var camera := Camera3D.new()
 var models := {}
 var current := ""
+var admin_animation_until: int = 0
 var pitch := -0.25
 var distance := 4.2
 var jump_held := false
@@ -111,7 +112,14 @@ func _ready():
 	net = preload("res://network.gd").new()
 	net.world = self
 	add_child(net)
+func preview_admin_animation(state: String):
+	admin_animation_until = 0
+	current = ""
+	animate(state)
+	admin_animation_until = Time.get_ticks_msec() + 2500
+
 func animate(state):
+	if Time.get_ticks_msec() < admin_animation_until: return
 	if state == current: return
 	current = state
 	if models.has("Avatar"):
