@@ -193,6 +193,9 @@ func animate(state):
 				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				ap.play(desired)
 		return
+	# Keep the selected skin during physics-driven jumps.
+	if state == "Jumping" and models.has("Idle"):
+		state = "Idle"
 	if using_brute and not models.has(state):
 		if not ensure_brute_motion(state):
 			state = "Idle"
