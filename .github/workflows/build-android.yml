@@ -100,8 +100,14 @@ jobs:
           fi
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.7.tres
 
-      - name: Importar jogo
-        run: godot --headless --editor --import
+      - name: Importar jogo e validar scripts
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --editor --import 2>&1 | tee import.log
+          if grep -E "SCRIPT ERROR: Parse Error|Failed to load script" import.log; then exit 1; fi
+          godot --headless --path . --quit-after 120 2>&1 | tee startup.log
+          if grep -E "SCRIPT ERROR|Failed to load script|Failed loading resource" startup.log; then exit 1; fi
 
       - name: Gerar APK
         run: |
