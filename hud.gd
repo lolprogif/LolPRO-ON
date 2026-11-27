@@ -148,7 +148,7 @@ func _ready():
 	var menu_items := [
 		["🧪","Poção"],["♟","Personagem"],["▣","Inventário"],["✦","Especial"],
 		["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"],["♧","Amigos"],
-		["◎","Grupo"],["▤","Loja"],["⚙","Opções"],["☰","Chat"]
+		["◎","Grupo"],["▤","Loja"],["⚙","Opções"]
 	]
 	for item in menu_items:
 		var glyph: String = item[0]
@@ -156,10 +156,6 @@ func _ready():
 		var action := func():
 			if n == "Poção":
 				use_potion()
-			elif n == "Chat":
-				cp.visible = not cp.visible
-				if cp.visible:
-					entry.grab_focus()
 			else:
 				toggle(n)
 		var b := button(menu,glyph,action)
@@ -199,6 +195,12 @@ func _ready():
 		entry.release_focus()
 		cp.hide())
 	cp.hide()
+	var chat_button := button(menu,"☰",func():
+		cp.visible = not cp.visible
+		if cp.visible:
+			entry.grab_focus())
+	chat_button.tooltip_text = "Chat"
+	chat_button.custom_minimum_size = Vector2(34,46)
 
 	var inv := window("Inventário",Vector2(300,440),true)
 	label(inv,"Equipamentos iniciais")
