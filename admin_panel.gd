@@ -7,6 +7,8 @@ var status: Label
 var opener: Button
 var checked := false
 var permissions: Array = []
+var animation_button: Button
+var animation_panel: VBoxContainer
 func _ready():
 	add_child(request)
 	request.request_completed.connect(done)
@@ -25,6 +27,17 @@ func _ready():
 	status = Label.new()
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(status)
+	animation_button = Button.new()
+	animation_button.text = "Animações"
+	animation_button.hide()
+	panel.add_child(animation_button)
+	animation_panel = hud.window("Animações",Vector2(320,280))
+	animation_button.pressed.connect(func(): hud.toggle("Animações"))
+	for state in ["Idle","Walking","Running","Jumping"]:
+		var test_button := Button.new()
+		test_button.text = {"Idle":"Repouso","Walking":"Caminhar","Running":"Correr","Jumping":"Pular"}[state]
+		animation_panel.add_child(test_button)
+		test_button.pressed.connect(test_animation.bind(state))
 func _process(_delta):
 	if not checked and net.cloud_active:
 		checked = true
@@ -41,6 +54,7 @@ func done(result: int, code: int, _headers: PackedStringArray, body: PackedByteA
 	if data.has("permissions"):
 		permissions = data.permissions
 		opener.visible = not permissions.is_empty()
+		animation_button.visible = "owner" in permissions
 		for cmd in permissions:
 			if cmd == "owner": continue
 			var b := Button.new()
@@ -52,3 +66,7 @@ func select_command(cmd: String):
 	entry.text = "/"+cmd+" "
 	if cmd == "curar": send(entry.text)
 	else: entry.grab_focus()
+
+func test_animation(state: String):
+	if not "owner" in permissions: return
+	net.world.call("preview_admin_animation",state)
