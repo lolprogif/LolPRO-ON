@@ -208,7 +208,7 @@ func animate(state):
 		var ap: AnimationPlayer = anim[0]
 		for clip in ap.get_animation_list():
 			if clip != "RESET":
-				var one_shot := state == "Jumping" or state == "Attack1" or state == "Attack2"
+				var one_shot: bool = state == "Jumping" or state == "Attack1" or state == "Attack2"
 				ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if one_shot else Animation.LOOP_LINEAR
 				remove_horizontal_motion(ap, clip, state == "Jumping")
 				ap.stop()
