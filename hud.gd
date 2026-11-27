@@ -75,7 +75,12 @@ func _ready():
 	theme_rpg.default_font_size = 13
 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
 	Input.set_custom_mouse_cursor(null,Input.CURSOR_POINTING_HAND)
+	# Merlis2 artwork by werednnbs, used with permission reported by project owner.
 	root.theme = theme_rpg
+	for pair in [["normal","normal"],["hover","hover"],["pressed","press"]]:
+		theme_rpg.set_stylebox(pair[0],"Button",merlis_box("res://common/bottons/btn-gen-"+pair[1]+".png"))
+	theme_rpg.set_stylebox("panel","PanelContainer",merlis_box("res://board/board_base.png"))
+	theme_rpg.set_stylebox("panel","Panel",merlis_box("res://inventory/slot_base.png"))
 
 	# Compact character identity at the top-left; combat status lives in the bottom HUD.
 	var identity := panel_at(Vector2(12,12),Vector2(190,38))
@@ -91,7 +96,7 @@ func _ready():
 	map_widget.offset_top = 12
 	map_widget.offset_bottom = 154
 	var frame := TextureRect.new()
-	frame.texture = preload("res://png/hud_bars_globes/minimap_circle_frame.png")
+	frame.texture = preload("res://minimap/minimap.png")
 	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	map_widget.add_child(frame)
@@ -118,7 +123,7 @@ func _ready():
 	bottom.offset_right = 310
 	bottom.offset_top = -104
 	bottom.offset_bottom = -8
-	bottom.add_theme_stylebox_override("panel", medieval_box("res://png/windows_panels/panel_iron_dark.png",12))
+	bottom.add_theme_stylebox_override("panel", merlis_box("res://taskbar/taskbar_base.png"))
 	var dock := HBoxContainer.new()
 	dock.alignment = BoxContainer.ALIGNMENT_CENTER
 	dock.add_theme_constant_override("separation",4)
@@ -157,7 +162,7 @@ func _ready():
 		slot.custom_minimum_size = Vector2(28,28)
 		slot.focus_mode = Control.FOCUS_NONE
 		var slot_style := StyleBoxTexture.new()
-		slot_style.texture = preload("res://png/slots_inventory/slot_normal.png")
+		slot_style.texture = preload("res://inventory/slot_base.png")
 		slot.add_theme_stylebox_override("normal",slot_style)
 		skills.add_child(slot)
 
@@ -183,6 +188,11 @@ func _ready():
 				toggle(n)
 		var b := button(menu,glyph,action)
 		b.tooltip_text = n
+		var icons := {"Personagem":"character","Inventário":"inventory","Amigos":"community","Opções":"system"}
+		if icons.has(n):
+			b.icon = load("res://taskbar/bottons/"+str(icons[n])+"_button_01.png") as Texture2D
+			b.expand_icon = true
+			b.text = ""
 		b.custom_minimum_size = Vector2(24,32)
 
 	var attack_button := Button.new()
@@ -333,11 +343,11 @@ func bar(parent: Node, value: int, color: Color) -> ProgressBar:
 	b.custom_minimum_size = Vector2(110,12)
 	b.show_percentage = false
 	b.value = value
-	var texture_path := "res://png/hud_bars_globes/bar_fill_health.png"
+	var texture_path := "res://taskbar/gauge_hp.png"
 	if color == Color("428bd8"):
-		texture_path = "res://png/hud_bars_globes/bar_fill_mana.png"
+		texture_path = "res://taskbar/gauge_sp.png"
 	elif color == Color("d9b45d"):
-		texture_path = "res://png/hud_bars_globes/bar_fill_xp.png"
+		texture_path = "res://taskbar/gauge_exp.png"
 	var fill := StyleBoxTexture.new()
 	fill.texture = load(texture_path) as Texture2D
 	b.add_theme_stylebox_override("fill",fill)
@@ -345,20 +355,29 @@ func bar(parent: Node, value: int, color: Color) -> ProgressBar:
 	parent.add_child(b)
 	return b
 func window(n: String, sz: Vector2, right := false) -> VBoxContainer:
-	var p := panel_at(Vector2(240,110),sz)
+	var p := panel_at(Vector2(12,80),sz)
 	if right:
 		p.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 		p.offset_left = -sz.x - 12
 		p.offset_right = -12
-		p.offset_top = 120
-		p.offset_bottom = 120 + sz.y
-	var v := VBoxContainer.new()
-	p.add_child(v)
+		p.offset_top = 80
+		p.offset_bottom = 80 + minf(sz.y,maxf(100.0,root.size.y-160.0))
+	var outer := VBoxContainer.new()
+	p.add_child(outer)
 	var h := HBoxContainer.new()
-	v.add_child(h)
+	outer.add_child(h)
 	var l := label(h,n)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button(h,"×",func(): p.hide())
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	outer.add_child(scroll)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(v)
+	p.resized.connect(func(): scroll.custom_minimum_size.y = maxf(40.0,minf(sz.y-48.0,root.size.y-180.0)))
+	scroll.custom_minimum_size.y = maxf(40.0,minf(sz.y-48.0,root.size.y-180.0))
 	windows[n] = p
 	p.hide()
 	return v
@@ -617,3 +636,10 @@ func globe_icon(parent: Control, path: String):
 	icon.custom_minimum_size = Vector2(26,26)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(icon)
+
+func merlis_box(path: String) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(path) as Texture2D
+	for side in [SIDE_LEFT,SIDE_RIGHT,SIDE_TOP,SIDE_BOTTOM]:
+		sb.set_content_margin(side,4.0)
+	return sb
