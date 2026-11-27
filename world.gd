@@ -25,6 +25,7 @@ var touch_sensitivity := 50.0
 var touch_dir := Vector2.ZERO
 var touch_run := false
 var touch_jump := false
+var attack_anim_until: int = 0
 var attack_cooldown := 0.0
 var portal_guard: Node3D
 var portal_dialog: ConfirmationDialog
@@ -254,8 +255,8 @@ func _physics_process(delta):
 				player.rotation.y = atan2(offset.x,offset.z)
 				attack()
 		else: direction = offset.normalized()
-	var running := true # Corrida padrão: teclado, toque e clique no chão.
-	var speed := 5.2 # Aumento de aproximadamente 13% sobre os 4.6 anteriores.
+	var running: bool = not touch_run # Corrida padrão; botão redondo alterna para caminhada.
+	var speed: float = 5.2 if running else 2.8
 	player.velocity.x = move_toward(player.velocity.x,direction.x*speed,delta*18.0)
 	player.velocity.z = move_toward(player.velocity.z,direction.z*speed,delta*18.0)
 	var jump_now := Input.is_physical_key_pressed(KEY_SPACE) or touch_jump
@@ -270,7 +271,8 @@ func _physics_process(delta):
 		jumping = false
 	if player.position.y < -10: player.position = Vector3(0,0.65,0)
 	if direction.length() > 0.01: player.rotation.y = lerp_angle(player.rotation.y,atan2(direction.x,direction.z),1.0-exp(-12.0*delta))
-	animate("Jumping" if jumping else ("Idle" if direction.length()<0.01 else ("Running" if running else "Walking")))
+	if Time.get_ticks_msec() >= attack_anim_until:
+		animate("Jumping" if jumping else ("Idle" if direction.length()<0.01 else ("Running" if running else "Walking")))
 	pivot.position = pivot.position.lerp(player.position + Vector3(0,1.5,0),1.0-exp(-12.0*delta))
 	pivot.rotation = Vector3(pitch,yaw,0)
 	camera.position.z = lerpf(camera.position.z,distance,1.0-exp(-12.0*delta))
@@ -322,7 +324,7 @@ func attack():
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0:
 		return
 	if not is_instance_valid(combat_target):
-		combat_target = acquire_nearby_target()
+		combat_target = acquire_nearby_target(9.0)
 	if not is_instance_valid(combat_target):
 		return
 	var target_offset: Vector3 = combat_target.global_position - player.global_position
@@ -342,6 +344,7 @@ func attack():
 		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
 		animate(next_attack)
 		admin_animation_until = Time.get_ticks_msec() + 580
+		attack_anim_until = admin_animation_until
 		var attack_state := next_attack
 		get_tree().create_timer(0.58).timeout.connect(func():
 			admin_animation_until = 0
