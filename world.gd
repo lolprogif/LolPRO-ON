@@ -99,7 +99,7 @@ func _ready():
 				models[state] = model
 	else:
 		var avatar_file: String = str({"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx"))
-		var custom_path: String = str({"sura":"res://sura_male_novice.glb"}.get(avatar_id,"res://assets/"+avatar_file))
+		var custom_path: String = str({"sura":"res://assets/Brute.fbx"}.get(avatar_id,"res://assets/"+avatar_file))
 		var avatar_scene = load(custom_path)
 		if avatar_scene is PackedScene:
 			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
