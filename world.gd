@@ -64,7 +64,7 @@ func _ready():
 	floor_shape.position.y = -0.5
 	ground.add_child(floor_shape)
 	add_child(player)
-	player.position.y = 0.1
+	player.position.y = 0.65
 	var col := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.height = 1.8
@@ -120,7 +120,13 @@ func animate(state):
 				if ap.has_animation(candidate):
 					desired = candidate
 					break
+			if desired.is_empty():
+				for clip in ap.get_animation_list():
+					if clip != "RESET":
+						desired = clip
+						break
 			if not desired.is_empty():
+				remove_horizontal_motion(ap, desired, state == "Jumping")
 				ap.stop()
 				ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
 				ap.play(desired)
@@ -177,7 +183,7 @@ func _physics_process(delta):
 	player.move_and_slide()
 	if player.is_on_floor():
 		jumping = false
-	if player.position.y < -10: player.position = Vector3(0,1,0)
+	if player.position.y < -10: player.position = Vector3(0,0.65,0)
 	if direction.length() > 0.01: player.rotation.y = lerp_angle(player.rotation.y,atan2(direction.x,direction.z),1.0-exp(-12.0*delta))
 	animate("Jumping" if jumping else ("Idle" if direction.length()<0.01 else ("Running" if running else "Walking")))
 	pivot.position = pivot.position.lerp(player.position + Vector3(0,1.5,0),1.0-exp(-12.0*delta))
@@ -405,10 +411,10 @@ func create_valoria():
 	var wood := Color("493329")
 	var red := Color("6e2028")
 	# Main raised courtyard and the road leading to the temple.
-	map_box("Courtyard", Vector3(0,0.02,0), Vector3(34,0.45,34), stone)
-	map_box("TempleRoad", Vector3(0,0.06,-18), Vector3(12,0.3,24), dark_stone)
+	map_box("Courtyard", Vector3(0,-0.225,0), Vector3(34,0.45,34), stone)
+	map_box("TempleRoad", Vector3(0,-0.145,-18), Vector3(12,0.3,24), dark_stone)
 	for i in range(6):
-		map_box("RoadTile", Vector3(0,0.24,-8.0-float(i)*3.0), Vector3(11,0.12,2.7), stone)
+		map_box("RoadTile", Vector3(0,0.015,-8.0-float(i)*3.0), Vector3(11,0.02,2.7), stone, false)
 	# Entrance stairs.
 	for i in range(5):
 		map_box("TempleStep", Vector3(0,0.22+float(i)*0.24,-26.0-float(i)*0.72), Vector3(13.0-float(i)*0.8,0.42,2.0), dark_stone)
@@ -477,7 +483,8 @@ func create_valoria():
 	for x in [-17.0,17.0]:
 		map_box("CourtyardWall", Vector3(x,1.0,0), Vector3(0.8,2.0,33), dark_stone)
 	for z in [-16.0,16.0]:
-		map_box("CourtyardWall", Vector3(0,1.0,z), Vector3(34,2.0,0.8), dark_stone)
+		for side in [-1.0,1.0]:
+			map_box("CourtyardWall", Vector3(float(side)*10.5,1.0,z), Vector3(13,2.0,0.8), dark_stone)
 	# Distant silhouettes make the playable area feel like a larger region.
 	for i in range(9):
 		var x := -48.0+float(i)*12.0
