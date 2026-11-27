@@ -82,6 +82,10 @@ func _ready():
 				player.add_child(model)
 				model.hide()
 				models[state] = model
+	elif avatar_id == "warrior_m":
+		var original = preload("res://original_warrior.gd").new()
+		player.add_child(original)
+		models["Avatar"] = original
 	else:
 		var avatar_file: String = str({"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx"))
 		var custom_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb"}.get(avatar_id,"res://assets/"+avatar_file))
@@ -112,6 +116,9 @@ func animate(state):
 	if models.has("Avatar"):
 		var actor: Node3D = models["Avatar"]
 		actor.show()
+		if actor.has_method("set_motion"):
+			actor.call("set_motion", state)
+			return
 		var anim = actor.find_children("*","AnimationPlayer",true,false)
 		if not anim.is_empty():
 			var ap: AnimationPlayer = anim[0]
