@@ -12,6 +12,9 @@ class MiniMapWidget extends Control:
 		draw_circle(center,5.0,Color("f5d27c"))
 		draw_circle(center,2.0,Color("fff4d6"))
 var world: Node3D
+var quick_buttons: Array[Button] = []
+var drag_panel: Control
+var drag_offset := Vector2.ZERO
 var root: Control
 var windows := {}
 var coins := 100
@@ -150,6 +153,7 @@ func _ready():
 		bottom.add_child(slot)
 		slot.position = Vector2(301+35*i+(8 if i>=4 else 0),40)
 		slot.size = Vector2(32,32)
+		if i<6: quick_buttons.append(slot)
 	var menu := HBoxContainer.new()
 	bottom.add_child(menu)
 	menu.position = Vector2(660,49)
@@ -272,6 +276,10 @@ func _ready():
 			refresh())
 	label(shop,"Loja premium e NPC físico: pendentes")
 	var opt_window := window("Opções",Vector2(300,360))
+	var free := CheckButton.new()
+	free.text = "Modo de combate livre"
+	opt_window.add_child(free)
+	free.toggled.connect(func(active): world.free_combat = active)
 	label(opt_window,"Sensibilidade da câmera (Android)")
 	var sensitivity := HSlider.new()
 	sensitivity.min_value = 1
@@ -350,6 +358,16 @@ func window(n: String, sz: Vector2, right := false) -> VBoxContainer:
 	outer.add_child(h)
 	var l := label(h,n)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.mouse_filter = Control.MOUSE_FILTER_STOP
+	l.mouse_default_cursor_shape = Control.CURSOR_MOVE
+	l.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				drag_panel = p
+				drag_offset = root.get_local_mouse_position()-p.position
+				p.move_to_front()
+			else: drag_panel = null
+			l.accept_event())
 	button(h,"×",func(): p.hide())
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -634,3 +652,15 @@ func merlis_image(parent: Control, path: String, pos: Vector2, dimensions: Vecto
 	parent.add_child(image)
 	image.position = pos
 	image.size = dimensions
+
+func _input(event):
+	if not is_instance_valid(drag_panel): return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		drag_panel = null
+	elif event is InputEventMouseMotion:
+		var p := drag_panel
+		var old_size := p.size
+		p.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		p.size = old_size
+		p.position = (root.get_local_mouse_position()-drag_offset).clamp(Vector2.ZERO,Vector2(maxf(0,root.size.x-p.size.x),maxf(0,root.size.y-32)))
+		get_viewport().set_input_as_handled()
