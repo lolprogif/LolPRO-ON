@@ -75,6 +75,7 @@ func _ready():
 	col.position.y = 0.9
 	player.add_child(col)
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
+	if avatar_id == "warrior_m": avatar_id = "sura"
 	if avatar_id == "whiteclown":
 		# Mantém o conjunto de animações original do personagem masculino.
 		for state in ["Idle","Walking","Running","Jumping"]:
@@ -84,13 +85,9 @@ func _ready():
 				player.add_child(model)
 				model.hide()
 				models[state] = model
-	elif avatar_id == "warrior_m":
-		var original = preload("res://original_warrior.gd").new()
-		player.add_child(original)
-		models["Avatar"] = original
 	else:
 		var avatar_file: String = str({"erika_archer":"erika_archer.fbx","maria":"maria.fbx"}.get(avatar_id,"erika_archer.fbx"))
-		var custom_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb"}.get(avatar_id,"res://assets/"+avatar_file))
+		var custom_path: String = str({"sura":"res://sura_male_novice.glb"}.get(avatar_id,"res://assets/"+avatar_file))
 		var avatar_scene = load(custom_path)
 		if avatar_scene is PackedScene:
 			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
