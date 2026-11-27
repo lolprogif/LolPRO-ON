@@ -458,6 +458,8 @@ func done(result: int,code: int,_headers: PackedStringArray,body: PackedByteArra
 		get_tree().set_meta("online_token",token)
 		get_tree().set_meta("hud_profile",user.text.strip_edges().to_lower())
 		get_tree().set_meta("selected_avatar",preview_avatar)
+		get_tree().set_meta("saved_world_position",d.get("position",[0,0.65,0]))
+		get_tree().set_meta("saved_world_angle",d.get("angle",0.0))
 		start_loading()
 
 func show_selection(items: Array, legacy: String):
@@ -688,7 +690,7 @@ func start_loading():
 	if is_instance_valid(preview_actor):
 		if play_preview("Walking"):
 			var cinematic := create_tween().set_parallel(true)
-			cinematic.tween_property(preview_actor,"position:z",1.1,2.0)
+			cinematic.tween_property(preview_actor,"position:z",0.0,2.0)
 			cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),2.0)
 			await cinematic.finished
 		else:
