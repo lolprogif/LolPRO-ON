@@ -462,7 +462,7 @@ func create_valoria():
 	for side in [-1.0,1.0]:
 		for i in range(3):
 			var z := 5.0-float(i)*10.0
-			var x := side*19.0
+			var x: float = float(side) * 19.0
 			map_box("TownHouse", Vector3(x,2.0,z), Vector3(7,4,7), wood)
 			map_box("HouseRoof", Vector3(x,4.5,z), Vector3(8.5,0.55,8.5), roof, false)
 			map_box("HouseDoor", Vector3(x,1.1,z+3.56), Vector3(1.6,2.2,0.18), dark_stone, false)
