@@ -132,7 +132,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"target_id":attack_target_id,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
+			var payload := {"token":cloud_token,"map_id":world.current_map,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"target_id":attack_target_id,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -244,6 +244,11 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 	for id in remotes.keys():
 		if not seen.has(id): remove_remote(id)
 	status.text = "Online HTTPS • %d jogador(es)" % (seen.size()+1)
+
+func map_changed() -> void:
+	elapsed = 1.0
+	for id in remotes.keys():
+		remove_remote(id)
 
 func request_attack(target_id: String = ""):
 	if cloud_active and health > 0:
