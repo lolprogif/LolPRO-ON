@@ -215,17 +215,36 @@ func animate(state):
 			var ap: AnimationPlayer = anim[0]
 			var desired := ""
 			if using_agent:
-				var wanted: String = str({"Idle":"Idle-loop","Walking":"Walk-loop","Running":"Run-loop","Jumping":"Jump","Attack1":"Sword slash","Attack2":"Sword thrust"}.get(state,"Idle-loop"))
-				for clip in ap.get_animation_list():
-					if String(clip).get_file().to_lower().replace("_"," ").replace("-"," ") == wanted.to_lower().replace("-"," "):
+				var wanted: Array = {
+					"Idle":["idle loop","idle","standing","stand","wait"],
+					"Walking":["walk loop","walking","walk"],
+					"Running":["run loop","running","run"],
+					"Jumping":["jump"],
+					"Attack1":["sword slash","slash"],
+					"Attack2":["sword thrust","thrust"]
+				}.get(state,["idle loop","idle"])
+				for candidate in wanted:
+					for clip in ap.get_animation_list():
+						var normalized := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+						if clip != "RESET" and normalized == candidate:
+							desired = String(clip)
+							break
+					if not desired.is_empty():
+						break
+				if desired.is_empty() and state == "Idle":
+					for clip in ap.get_animation_list():
+						var normalized := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+						if clip == "RESET" or "parachute" in normalized or "fall" in normalized or "jump" in normalized or "death" in normalized or "walk" in normalized or "run" in normalized:
+							continue
 						desired = String(clip)
 						break
 				if not desired.is_empty():
 					var one_shot: bool = state in ["Jumping","Attack1","Attack2"]
 					ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if one_shot else Animation.LOOP_LINEAR
 					remove_horizontal_motion(ap, desired, state == "Jumping")
-					ap.play(desired, 0.12)
-					return
+					ap.stop()
+					ap.play(desired,0.12)
+				return
 			var candidates := {"Idle":["Intro_wait","onehand_idle","Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","Run","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","jump","Idle","idle","Intro_wait"]}
 			for candidate in candidates.get(state,["FreeRunning"]):
 				if ap.has_animation(candidate):
