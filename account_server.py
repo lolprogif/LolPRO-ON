@@ -178,6 +178,8 @@ class Handler(BaseHTTPRequestHandler):
      pos=d.get('pos')
      angle=d.get('angle')
      state=d.get('state')
+     map_id=str(d.get('map_id','valoria'))
+     if map_id not in ('valoria','bosses'): raise ValueError('Invalid map')
      if not isinstance(pos,list) or len(pos)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<=150 for v in pos) or type(angle) not in (int,float) or not math.isfinite(angle) or state not in ('Idle','Walking','Running','Jumping'): raise ValueError('Invalid movement')
      # Shared presence is stored in the account database so clients served by
      # different web workers still see the same online world.
@@ -248,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
       me['max_hp']=100+ph
       if me['hp']>0: me['hp']=max(1,min(me['max_hp'],me['hp']+me['max_hp']-old_max))
       me['pet'].update(attack=pa,defense=pd,life=ph)
-      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now,free_combat=d.get('free_combat') is True)
+      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now,map_id=map_id,free_combat=d.get('free_combat') is True)
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
        me['attack_seq']=seq
@@ -256,7 +258,7 @@ class Handler(BaseHTTPRequestHandler):
        if me['hp']>0 and me.get('free_combat',False) and now-me['last_attack']>=0.6:
         me['last_attack']=now
         for key,target in players.items():
-         if key==row[0] or target['hp']<=0: continue
+         if key==row[0] or target['hp']<=0 or target.get('map_id','valoria')!=map_id: continue
          if target_id and key!=target_id: continue
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
@@ -288,7 +290,7 @@ class Handler(BaseHTTPRequestHandler):
          me['hp']=min(me.get('max_hp',100),me['hp']+30)
         else:
          for key,target in players.items():
-          if me.get('free_combat',False) and key!=row[0] and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
+          if me.get('free_combat',False) and key!=row[0] and target.get('map_id','valoria')==map_id and target['hp']>0 and math.dist(pos,target['pos'])<= (5 if profile[0] in ('Xamã','Ninja') else 3):
            target['hp']=max(0,target['hp']-max(1,15+idx*4+pa-pet_bonuses(target.get('pet',{}))[1]))
            if target['hp']==0: target['respawn_at']=now+3
       potion=str(d.get('potion',''))[:80]
@@ -296,7 +298,7 @@ class Handler(BaseHTTPRequestHandler):
        me['potion_seq']=potion
        if 0<me['hp']<me.get('max_hp',100) and me['potions']>0:
         me['potions']-=1; me['hp']=min(me.get('max_hp',100),me['hp']+20)
-      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0]]
+      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0] and item.get('map_id','valoria')==map_id]
       for item in others:
        source=players[item['id']]
        item['pet']=source.get('pet',{})
