@@ -30,7 +30,9 @@ var touch_jump := false
 var attack_anim_until: int = 0
 var attack_cooldown := 0.0
 var portal_guard: Node3D
+var boss_return_guard: Node3D
 var portal_dialog: ConfirmationDialog
+var current_map: String = "valoria"
 func _ready():
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -53,6 +55,7 @@ func _ready():
 	var ground := StaticBody3D.new()
 	add_child(ground)
 	create_valoria()
+	create_boss_map()
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(200,200)
@@ -1035,28 +1038,90 @@ func create_test_monster() -> void:
 			var local_delta := rest.basis.orthonormalized().inverse() * Basis(delta) * rest.basis.orthonormalized()
 			skeleton.set_bone_pose_rotation(i, skeleton.get_bone_pose_rotation(i) * local_delta.get_rotation_quaternion())
 
+func create_boss_map() -> void:
+	# Área de bosses separada fisicamente da cidade. O servidor também separa
+	# os jogadores pelo map_id, portanto não há mistura de personagens entre mapas.
+	var floor_color := Color("34313d")
+	var wall_color := Color("252b38")
+	map_box("BossMapFloor",Vector3(70,-0.15,70),Vector3(48,0.5,48),floor_color)
+	map_box("BossMapNorthWall",Vector3(70,4,46),Vector3(48,8,1),wall_color)
+	map_box("BossMapSouthWall",Vector3(70,4,94),Vector3(48,8,1),wall_color)
+	map_box("BossMapEastWall",Vector3(94,4,70),Vector3(1,8,48),wall_color)
+	map_box("BossMapWestWall",Vector3(46,4,70),Vector3(1,8,48),wall_color)
+	for i in range(4):
+		var x := 57.0 + float(i)*8.5
+		map_box("BossPillar",Vector3(x,2.5,58),Vector3(1.2,5,1.2),Color("59404a"))
+		map_box("BossPillar",Vector3(x,2.5,82),Vector3(1.2,5,1.2),Color("59404a"))
+	map_box("BossArenaPlatform",Vector3(70,0.16,70),Vector3(20,0.18,20),Color("514454"),false)
+	castle_portal(Vector3(70,2.6,50),Vector3(0,0.2,0))
+	create_boss_return_guard()
+
+func create_boss_return_guard() -> void:
+	var path := "res://assets/portal_guard.fbx"
+	if not ResourceLoader.exists(path):
+		push_warning("Modelo do teleportador de retorno não encontrado.")
+		return
+	var scene = load(path)
+	if not scene is PackedScene:
+		return
+	boss_return_guard = scene.instantiate() as Node3D
+	if boss_return_guard == null:
+		return
+	add_child(boss_return_guard)
+	boss_return_guard.position = Vector3(70,1.0,53)
+	boss_return_guard.rotation.y = PI
+	var tag := Label3D.new()
+	tag.text = "Teleportador • Voltar para Valoria"
+	tag.position.y = 2.2
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	boss_return_guard.add_child(tag)
+
 func try_guard_click(screen_pos: Vector2) -> bool:
-	if not is_instance_valid(portal_guard):
+	var chosen: Node3D = null
+	var destination := ""
+	var best_distance := 65.0
+	for entry in [{"node":portal_guard,"destination":"bosses"},{"node":boss_return_guard,"destination":"valoria"}]:
+		var guard: Node3D = entry.node
+		if not is_instance_valid(guard):
+			continue
+		if player.global_position.distance_to(guard.global_position) > 8.0:
+			continue
+		var target := guard.global_position + Vector3(0,0.9,0)
+		if camera.is_position_behind(target):
+			continue
+		var screen_distance := camera.unproject_position(target).distance_to(screen_pos)
+		if screen_distance < best_distance:
+			best_distance = screen_distance
+			chosen = guard
+			destination = str(entry.destination)
+	if not is_instance_valid(chosen):
 		return false
-	var target := portal_guard.global_position + Vector3(0,0.9,0)
-	if camera.is_position_behind(target):
-		return false
-	if camera.unproject_position(target).distance_to(screen_pos) > 65.0:
-		return false
-	if player.global_position.distance_to(portal_guard.global_position) > 7.0:
-		return false
-	if not is_instance_valid(portal_dialog):
-		portal_dialog = ConfirmationDialog.new()
-		portal_dialog.title = "Guardião do Portal"
-		portal_dialog.dialog_text = "Escolha seu destino: Mapa dos Bosses"
-		portal_dialog.ok_button_text = "Mapa dos Bosses"
-		portal_dialog.cancel_button_text = "Fechar"
-		add_child(portal_dialog)
-		portal_dialog.confirmed.connect(func():
-			player.position = Vector3(70,0.65,70)
-			player.velocity = Vector3.ZERO)
-	portal_dialog.popup_centered(Vector2i(320,160))
+	if is_instance_valid(portal_dialog):
+		portal_dialog.queue_free()
+	portal_dialog = ConfirmationDialog.new()
+	portal_dialog.title = "Teleportador"
+	portal_dialog.dialog_text = "Viajar para o Mapa dos Bosses?" if destination == "bosses" else "Voltar para Valoria?"
+	portal_dialog.ok_button_text = "Viajar" if destination == "bosses" else "Voltar"
+	portal_dialog.cancel_button_text = "Cancelar"
+	add_child(portal_dialog)
+	portal_dialog.confirmed.connect(func(): travel_to_map(destination))
+	portal_dialog.popup_centered(Vector2i(340,160))
 	return true
+
+func travel_to_map(destination: String) -> void:
+	current_map = "bosses" if destination == "bosses" else "valoria"
+	player.velocity = Vector3.ZERO
+	click_moving = false
+	combat_target = null
+	selected_remote_id = ""
+	if current_map == "bosses":
+		player.global_position = Vector3(70,0.75,70)
+	else:
+		player.global_position = Vector3(0,0.75,0)
+	if is_instance_valid(target_marker):
+		target_marker.visible = false
+	if net != null and net.has_method("map_changed"):
+		net.map_changed()
 
 func click_world(screen_pos: Vector2):
 	var origin := camera.project_ray_origin(screen_pos)
