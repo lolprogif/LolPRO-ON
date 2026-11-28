@@ -35,6 +35,8 @@ var wallet_label: Label
 var money: Label
 var stock: Button
 var chat: RichTextLabel
+var chat_bubble: Label3D
+var chat_bubble_timer: Timer
 var coords: Label
 var theme_rpg := Theme.new()
 var pet_status: Label
@@ -178,7 +180,7 @@ func _ready():
 	var extras := HBoxContainer.new()
 	bottom.add_child(extras)
 	extras.position = Vector2(245,0)
-	for item in [["🧪","Poção"],["✦","Especial"],["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"],["◎","Grupo"],["▤","Loja"]]:
+	for item in [["✦","Especial"],["⚔","Habilidades"],["☺","Emoções"],["⚑","Missões"]]:
 		var n: String = item[1]
 		var extra := button(extras,item[0],func():
 			if n == "Poção": use_potion()
@@ -210,11 +212,31 @@ func _ready():
 	chat.custom_minimum_size.y = 50
 	chat.text = "Sistema: Bem-vindo! (offline)"
 	cv.add_child(chat)
+	# Balão de fala preso acima da cabeça do personagem local.
+	chat_bubble = Label3D.new()
+	chat_bubble.name = "ChatBubble"
+	chat_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	chat_bubble.position = Vector3(0,2.45,0)
+	chat_bubble.font_size = 32
+	chat_bubble.outline_size = 8
+	chat_bubble.visible = false
+	world.player.add_child(chat_bubble)
+	chat_bubble_timer = Timer.new()
+	chat_bubble_timer.one_shot = true
+	chat_bubble_timer.wait_time = 4.0
+	add_child(chat_bubble_timer)
+	chat_bubble_timer.timeout.connect(func(): if is_instance_valid(chat_bubble): chat_bubble.visible = false)
 	var entry := LineEdit.new()
 	entry.placeholder_text = "Chat local"
 	cv.add_child(entry)
 	entry.text_submitted.connect(func(msg):
-		chat.add_text("\\nVocê: " + msg)
+		var spoken := msg.strip_edges()
+		if spoken.is_empty():
+			return
+		chat.add_text("\\nVocê: " + spoken)
+		chat_bubble.text = spoken.left(80)
+		chat_bubble.visible = true
+		chat_bubble_timer.start()
 		entry.clear()
 		entry.release_focus()
 		cp.hide())
