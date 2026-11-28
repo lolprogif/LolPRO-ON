@@ -299,6 +299,13 @@ func _ready():
 			refresh())
 	label(shop,"Loja premium e NPC físico: pendentes")
 	var opt_window := window("Opções",Vector2(300,360))
+	label(opt_window,"Qualidade gráfica")
+	var graphics := OptionButton.new()
+	for preset in ["Baixa","Média","Alta","Ultra"]:
+		graphics.add_item(preset)
+	opt_window.add_child(graphics)
+	graphics.select(world.graphics_quality)
+	graphics.item_selected.connect(func(index: int): world.apply_graphics(index))
 	var free := CheckButton.new()
 	free.text = "Modo de combate livre"
 	opt_window.add_child(free)
