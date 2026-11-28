@@ -484,8 +484,8 @@ func attack():
 		return
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0:
 		return
-	if not is_instance_valid(combat_target):
-		combat_target = acquire_nearby_target(9.0)
+	# Ataque manual exige um alvo selecionado explicitamente.
+	# Nunca procura/adota um alvo automaticamente ao apertar ATACAR.
 	if not is_instance_valid(combat_target):
 		return
 	var target_offset: Vector3 = combat_target.global_position - player.global_position
