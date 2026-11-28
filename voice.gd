@@ -114,14 +114,14 @@ func _process(delta):
 		return
 	if not enabled and not listening: return
 	elapsed += delta
-	if elapsed < 0.2 or busy: return
+	if elapsed < 0.1 or busy: return
 	elapsed = 0.0
 	var bytes := PackedByteArray()
 	if enabled:
 		var available := capture.get_frames_available()
 		var frames := capture.get_buffer(available) if available > 0 else PackedVector2Array()
 		var ratio := float(AudioServer.get_mix_rate())/RATE
-		var start := maxi(0,frames.size()-int(AudioServer.get_mix_rate()*0.35))
+		var start := maxi(0,frames.size()-int(AudioServer.get_mix_rate()*0.12))
 		var i := float(start)
 		while int(i)<frames.size():
 			var sample := frames[int(i)]
@@ -148,7 +148,7 @@ func received(result: int, code: int, _headers: PackedStringArray, body: PackedB
 			var player := AudioStreamPlayer.new()
 			var stream := AudioStreamGenerator.new()
 			stream.mix_rate = RATE
-			stream.buffer_length = 0.8
+			stream.buffer_length = 0.35
 			player.stream = stream
 			add_child(player)
 			player.play()
