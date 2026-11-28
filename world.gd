@@ -103,7 +103,7 @@ func _ready():
 		current_map = "bosses"
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
 	if avatar_id == "warrior_m": avatar_id = "sura"
-	if avatar_id == "sura" and ResourceLoader.exists("res://assets/The_Secret_Agent.glb"):
+	if avatar_id == "secret_agent" and ResourceLoader.exists("res://assets/The_Secret_Agent.glb"):
 		var agent_scene = load("res://assets/The_Secret_Agent.glb")
 		if agent_scene is PackedScene:
 			var agent: Node3D = agent_scene.instantiate() as Node3D
