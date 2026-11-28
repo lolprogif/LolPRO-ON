@@ -419,6 +419,20 @@ func _physics_process(delta):
 	player.move_and_slide()
 	if player.is_on_floor():
 		jumping = false
+	# Entering either portal changes the logical online map and moves the
+	# character to that map's spawn. This works on mouse, keyboard and touch.
+	if Time.get_ticks_msec() >= portal_lock_until:
+		var portal_distance := 999.0
+		var portal_destination := ""
+		if current_map == "valoria":
+			portal_distance = Vector2(player.global_position.x,player.global_position.z).distance_to(Vector2(0.0,-30.5))
+			portal_destination = "bosses"
+		else:
+			portal_distance = Vector2(player.global_position.x-70.0,player.global_position.z-50.0).length()
+			portal_destination = "valoria"
+		if portal_distance <= 3.8:
+			travel_to_map(portal_destination)
+			portal_lock_until = Time.get_ticks_msec()+2500
 	if player.position.y < -10: player.position = Vector3(0,0.65,0)
 	if direction.length() > 0.01: player.rotation.y = lerp_angle(player.rotation.y,atan2(direction.x,direction.z),1.0-exp(-12.0*delta))
 	if Time.get_ticks_msec() >= attack_anim_until:
@@ -944,16 +958,7 @@ void fragment(){
 	arcs.material_override = arc_mat
 	add_child(arcs)
 	arcs.position = pos + Vector3(0,0,0.15)
-	# Solid invisible barrier prevents walking through the inactive portal.
-	var barrier := StaticBody3D.new()
-	barrier.name = "PortalBarrier"
-	var collision := CollisionShape3D.new()
-	var barrier_shape := BoxShape3D.new()
-	barrier_shape.size = Vector3(5.4,6.0,0.45)
-	collision.shape = barrier_shape
-	barrier.add_child(collision)
-	add_child(barrier)
-	barrier.position = pos
+	# Portal surfaces are traversable; map transition is handled by proximity trigger.
 func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
 	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	body.name = label
@@ -1142,15 +1147,22 @@ func try_guard_click(screen_pos: Vector2) -> bool:
 	return true
 
 func travel_to_map(destination: String) -> void:
-	current_map = "bosses" if destination == "bosses" else "valoria"
+	var next_map := "bosses" if destination == "bosses" else "valoria"
+	if next_map == current_map:
+		return
+	current_map = next_map
 	player.velocity = Vector3.ZERO
 	click_moving = false
+	auto_attack = false
 	combat_target = null
 	selected_remote_id = ""
 	if current_map == "bosses":
 		player.global_position = Vector3(70,0.75,70)
+		player.rotation.y = PI
 	else:
 		player.global_position = Vector3(0,0.75,0)
+		player.rotation.y = 0.0
+	portal_lock_until = Time.get_ticks_msec()+2500
 	if is_instance_valid(target_marker):
 		target_marker.visible = false
 	if net != null and net.has_method("map_changed"):
