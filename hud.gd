@@ -230,7 +230,7 @@ func _ready():
 	entry.placeholder_text = "Chat local"
 	cv.add_child(entry)
 	entry.text_submitted.connect(func(msg):
-		var spoken := msg.strip_edges()
+		var spoken: String = str(msg).strip_edges()
 		if spoken.is_empty():
 			return
 		chat.add_text("\\nVocê: " + spoken)
