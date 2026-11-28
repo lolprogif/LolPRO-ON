@@ -180,7 +180,8 @@ class Handler(BaseHTTPRequestHandler):
      state=d.get('state')
      map_id=str(d.get('map_id','valoria'))
      if map_id not in ('valoria','bosses'): raise ValueError('Invalid map')
-     if not isinstance(pos,list) or len(pos)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<=150 for v in pos) or type(angle) not in (int,float) or not math.isfinite(angle) or state not in ('Idle','Walking','Running','Jumping'): raise ValueError('Invalid movement')
+     position_limit = 1250 if map_id == 'bosses' else 150
+     if not isinstance(pos,list) or len(pos)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and abs(v)<=position_limit for v in pos) or type(angle) not in (int,float) or not math.isfinite(angle) or state not in ('Idle','Walking','Running','Jumping'): raise ValueError('Invalid movement')
      # Shared presence is stored in the account database so clients served by
      # different web workers still see the same online world.
      now=time.time()
