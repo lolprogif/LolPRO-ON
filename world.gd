@@ -35,6 +35,8 @@ var portal_guard: Node3D
 var boss_return_guard: Node3D
 var portal_dialog: ConfirmationDialog
 var current_map: String = "valoria"
+const BOSS_CENTER := Vector3(1000,0,1000)
+const BOSS_HALF := 250.0
 func _ready():
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -97,6 +99,8 @@ func _ready():
 	col.shape = capsule
 	col.position.y = 0.9
 	player.add_child(col)
+	if player.position.x > 700.0 and player.position.z > 700.0:
+		current_map = "bosses"
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
 	if avatar_id == "warrior_m": avatar_id = "sura"
 	if avatar_id == "sura" and ResourceLoader.exists("res://assets/The_Secret_Agent.glb"):
@@ -442,7 +446,15 @@ func _physics_process(delta):
 	player.move_and_slide()
 	if player.is_on_floor():
 		jumping = false
-	if player.position.y < -10: player.position = Vector3(0,0.65,0)
+	if current_map == "bosses":
+		player.position.x = clampf(player.position.x, BOSS_CENTER.x - BOSS_HALF + 1.0, BOSS_CENTER.x + BOSS_HALF - 1.0)
+		player.position.z = clampf(player.position.z, BOSS_CENTER.z - BOSS_HALF + 1.0, BOSS_CENTER.z + BOSS_HALF - 1.0)
+	else:
+		player.position.x = clampf(player.position.x, -99.0, 99.0)
+		player.position.z = clampf(player.position.z, -99.0, 99.0)
+	if player.position.y < -10:
+		player.position = (BOSS_CENTER if current_map == "bosses" else Vector3.ZERO) + Vector3(0,0.65,0)
+		player.velocity = Vector3.ZERO
 	if direction.length() > 0.01: player.rotation.y = lerp_angle(player.rotation.y,atan2(direction.x,direction.z),1.0-exp(-12.0*delta))
 	if Time.get_ticks_msec() >= attack_anim_until:
 		animate("Jumping" if jumping else ("Idle" if direction.length()<0.01 else ("Running" if running else "Walking")))
@@ -1088,8 +1100,8 @@ func create_test_monster() -> void:
 func create_boss_map() -> void:
 	# Novo mapa aberto, com a mesma área útil (48 x 48), sem construções,
 	# paredes ou pilares. Mantém somente o portal e o NPC de retorno.
-	map_box("BossMapFloor",Vector3(70,-0.15,70),Vector3(48,0.5,48),Color("34313d"))
-	castle_portal(Vector3(70,2.6,50),Vector3(0,0.2,0))
+	map_box("BossMapFloor",BOSS_CENTER + Vector3(0,-0.25,0),Vector3(500,0.5,500),Color("34313d"))
+	castle_portal(BOSS_CENTER + Vector3(0,2.6,-12),Vector3(0,0.2,0))
 	create_boss_return_guard()
 
 func create_boss_return_guard() -> void:
@@ -1104,7 +1116,7 @@ func create_boss_return_guard() -> void:
 	if boss_return_guard == null:
 		return
 	add_child(boss_return_guard)
-	boss_return_guard.position = Vector3(70,1.0,53)
+	boss_return_guard.position = BOSS_CENTER + Vector3(0,1.0,-9)
 	boss_return_guard.rotation.y = PI
 	var tag := Label3D.new()
 	tag.text = "Teleportador • Voltar para Valoria"
@@ -1155,12 +1167,13 @@ func travel_to_map(destination: String) -> void:
 	combat_target = null
 	selected_remote_id = ""
 	if current_map == "bosses":
-		player.global_position = Vector3(70,0.75,70)
+		player.global_position = BOSS_CENTER + Vector3(0,0.75,0)
 		# Spawn voltado para o portal/NPC de retorno.
 		player.rotation.y = PI
 	else:
 		player.global_position = Vector3(0,0.75,0)
 		player.rotation.y = 0.0
+	pivot.position = player.position + Vector3(0,1.5,0)
 	portal_lock_until = Time.get_ticks_msec()+2500
 	if is_instance_valid(target_marker):
 		target_marker.visible = false
