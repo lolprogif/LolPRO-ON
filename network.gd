@@ -353,15 +353,7 @@ func show_remote_pet(actor: Node3D, data: Dictionary):
 		pet = Node3D.new()
 		pet.name = "StarterPet"
 		actor.add_child(pet)
-		pet.position = Vector3(1.2,0.6,1.0)
-		for i in range(5):
-			var part := MeshInstance3D.new()
-			part.mesh = SphereMesh.new()
-			part.position = [Vector3.ZERO,Vector3(0,0.2,-0.25),Vector3(-0.32,0.12,0),Vector3(0.32,0.12,0),Vector3(0,0,0.38)][i]
-			part.scale = [Vector3(0.64,0.48,0.9),Vector3(0.44,0.44,0.44),Vector3(0.6,0.12,0.48),Vector3(0.6,0.12,0.48),Vector3(0.18,0.18,0.7)][i]
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color("d9a344")
-			part.material_override = mat
-			pet.add_child(part)
+		pet.position = Vector3(1.2,1.0,1.0)
+		preload("res://bone_pet.gd").attach(pet)
 	pet.show()
 	pet.scale = Vector3.ONE * (1.0+float(int(data.get("level",1))-1)/100.0)
