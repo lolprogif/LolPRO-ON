@@ -207,17 +207,23 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 	var aps = model.find_children("*","AnimationPlayer",true,false)
 	if not aps.is_empty():
 		var ap: AnimationPlayer = aps[0]
-		var wanted := {"Idle":["idle-loop","idle"],"Walking":["walk-loop","walking","walk"],"Running":["run-loop","running","run"],"Jumping":["jump","jumping"]}.get(state,[])
+		var wanted := {"Idle":["idle loop","idle","standing","stand","wait"],"Walking":["walk loop","walking","walk"],"Running":["run loop","running","run"],"Jumping":["jump"]}.get(state,["idle loop","idle"])
 		var chosen := ""
-		for clip in ap.get_animation_list():
-			if clip == "RESET": continue
-			var clip_name := String(clip).to_lower().replace("_"," ").replace("-"," ")
-			for candidate in wanted:
-				if clip_name.contains(candidate.replace("-"," ")):
+		for candidate in wanted:
+			for clip in ap.get_animation_list():
+				var clip_name := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+				if clip != "RESET" and clip_name == candidate:
 					chosen = String(clip)
 					break
 			if not chosen.is_empty(): break
-		if chosen.is_empty():
+		if chosen.is_empty() and avatar == "secret_agent":
+			for clip in ap.get_animation_list():
+				var clip_name := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+				if clip == "RESET" or "parachute" in clip_name or "fall" in clip_name or "jump" in clip_name or "death" in clip_name or "walk" in clip_name or "run" in clip_name:
+					continue
+				chosen = String(clip)
+				break
+		if chosen.is_empty() and avatar != "secret_agent":
 			for clip in ap.get_animation_list():
 				if clip != "RESET":
 					chosen = String(clip)
