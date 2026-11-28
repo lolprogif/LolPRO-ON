@@ -3,6 +3,8 @@ var free_combat := false
 var click_moving := false
 var click_destination := Vector3.ZERO
 var combat_target: Node3D
+var selected_remote_id := ""
+var target_marker: MeshInstance3D
 var player := CharacterBody3D.new()
 var pivot := Node3D.new()
 var camera := Camera3D.new()
@@ -128,6 +130,22 @@ func _ready():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
 	pivot.add_child(camera)
+	target_marker = MeshInstance3D.new()
+	target_marker.name = "SelectedPlayerMarker"
+	var marker_mesh := TorusMesh.new()
+	marker_mesh.inner_radius = 0.52
+	marker_mesh.outer_radius = 0.68
+	target_marker.mesh = marker_mesh
+	target_marker.rotation.x = PI / 2.0
+	target_marker.position.y = 0.045
+	var marker_material := StandardMaterial3D.new()
+	marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	marker_material.albedo_color = Color(1.0,0.08,0.08,0.95)
+	marker_material.emission_enabled = true
+	marker_material.emission = Color(1.0,0.02,0.02)
+	target_marker.material_override = marker_material
+	target_marker.visible = false
+	add_child(target_marker)
 	camera.current = true
 	camera.position.z = distance
 	var ui = preload("res://hud.gd").new()
@@ -283,6 +301,13 @@ func play_jump_on_selected_model() -> bool:
 	return true
 
 func _unhandled_input(event):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if select_remote_at(event.position):
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		else:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		get_viewport().set_input_as_handled()
+		return
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if not try_guard_click(event.position):
 			click_world(event.position)
@@ -294,13 +319,46 @@ func _unhandled_input(event):
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_RIGHT: Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP: distance = max(2.0,distance-0.5)
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN: distance = min(12.0,distance+0.5)
-	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+func select_remote_at(screen_pos: Vector2) -> bool:
+	if not is_instance_valid(net):
+		return false
+	var best_id := ""
+	var best_node: Node3D = null
+	var best_distance := 76.0
+	for id in net.remotes:
+		var entry: Dictionary = net.remotes[id]
+		var node: Node3D = entry.get("node")
+		if not is_instance_valid(node):
+			continue
+		var point := node.global_position + Vector3.UP
+		if camera.is_position_behind(point):
+			continue
+		var d := camera.unproject_position(point).distance_to(screen_pos)
+		if d < best_distance:
+			best_distance = d
+			best_id = str(id)
+			best_node = node
+	if not is_instance_valid(best_node):
+		return false
+	selected_remote_id = best_id
+	combat_target = best_node
+	click_moving = false
+	target_marker.visible = true
+	target_marker.global_position = best_node.global_position + Vector3(0,0.045,0)
+	var hud = get_children().filter(func(n): return n is CanvasLayer)[0]
+	if hud.has_method("show_target_menu"):
+		hud.show_target_menu(str(net.remotes[best_id].get("name","Jogador")))
+	return true
 func _physics_process(delta):
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	if is_instance_valid(target_marker) and target_marker.visible:
+		if is_instance_valid(combat_target):
+			target_marker.global_position = combat_target.global_position + Vector3(0,0.045,0)
+		else:
+			target_marker.visible = false
+			selected_remote_id = ""
 	if is_instance_valid(net) and net.cloud_active and net.health <= 0:
 		player.velocity = Vector3.ZERO
 		return
@@ -404,7 +462,12 @@ func attack():
 		player.rotation.y = atan2(target_offset.x,target_offset.z)
 	attack_cooldown = 0.6
 	if free_combat and is_instance_valid(net):
-		net.request_attack()
+		var target_id := ""
+		for id in net.remotes:
+			if net.remotes[id].get("node") == combat_target:
+				target_id = str(id)
+				break
+		net.request_attack(target_id)
 	if using_brute:
 		brute_attack_index += 1
 		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
