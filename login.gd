@@ -577,6 +577,7 @@ func show_selection(items: Array, legacy: String):
 	avatars.custom_minimum_size.y = 38
 	avatars.add_item("Whiteclown • Masculino",0)
 	avatars.add_item("Brute • Masculino",1)
+	avatars.add_item("Secret Agent • Masculino",2)
 	details.add_child(avatars)
 
 	var separator := HSeparator.new()
@@ -624,7 +625,7 @@ func show_selection(items: Array, legacy: String):
 		var profile: Dictionary = slot_profiles.get(index,{})
 		var saved_avatar := str(profile.get("avatar","whiteclown"))
 		if saved_avatar == "warrior_m": saved_avatar = "sura"
-		var avatar_index: int = int({"whiteclown":0,"sura":1}.get(saved_avatar,0))
+		var avatar_index: int = int({"whiteclown":0,"sura":1,"secret_agent":2}.get(saved_avatar,0))
 		avatars.select(avatar_index)
 		avatars.disabled = slot_names.has(index)
 		preview_avatar = saved_avatar
@@ -636,7 +637,7 @@ func show_selection(items: Array, legacy: String):
 		guild_info.text = "Guilda: %s" % str(profile.get("guild","Nenhuma"))
 	slots.item_selected.connect(choose)
 	avatars.item_selected.connect(func(index: int):
-		preview_avatar = ["whiteclown","sura"][index]
+		preview_avatar = ["whiteclown","sura","secret_agent"][index]
 		preview_gender = 0
 		play_preview("Idle")
 		preview_info.text = avatars.get_item_text(index))
@@ -653,7 +654,7 @@ func show_selection(items: Array, legacy: String):
 		if character.text.strip_edges().length()<3:
 			status.text = "Digite um nome com pelo menos 3 caracteres."
 			return
-		var avatar_id: String = str(slot_profiles.get(selected_slot,{}).get("avatar",["whiteclown","sura"][avatars.selected])) if slot_names.has(selected_slot) else ["whiteclown","sura"][avatars.selected]
+		var avatar_id: String = str(slot_profiles.get(selected_slot,{}).get("avatar",["whiteclown","sura","secret_agent"][avatars.selected])) if slot_names.has(selected_slot) else ["whiteclown","sura","secret_agent"][avatars.selected]
 		if avatar_id == "warrior_m": avatar_id = "sura"
 		send("character",{"token":token,"slot":selected_slot,"character":character.text.strip_edges(),"class":"Aventureiro","gender":"Masculino","avatar":avatar_id}))
 	actions.add_child(enter)
@@ -805,6 +806,25 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.current = true
 	play_preview("Idle")
 func play_preview(state: String) -> bool:
+	if preview_avatar == "secret_agent":
+		var agent_path := "res://assets/The_Secret_Agent.glb"
+		var agent_scene = load(agent_path)
+		if not agent_scene is PackedScene:
+			push_warning("Secret Agent ainda não foi importado: "+agent_path)
+			return false
+		if is_instance_valid(preview_actor): preview_actor.queue_free()
+		preview_actor = agent_scene.instantiate() as Node3D
+		preview_stage.add_child(preview_actor)
+		for node in preview_actor.find_children("*","AnimationPlayer",true,false):
+			var ap: AnimationPlayer = node
+			for clip in ap.get_animation_list():
+				if clip == "RESET": continue
+				var clip_name := String(clip).to_lower()
+				if state == "Walking" and not ("walk" in clip_name): continue
+				ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+				ap.play(clip)
+				return true
+		return true
 	var model_file: String = "Walking.fbx" if state == "Walking" else "Idle.fbx"
 	if preview_avatar == "sura":
 		model_file = "Walking.fbx" if state == "Walking" else "Idle.fbx"
