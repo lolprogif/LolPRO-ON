@@ -24,8 +24,9 @@ if DATABASE_URL:
     sql=sql.replace('INSERT OR IGNORE INTO ','INSERT INTO ',1)+' ON CONFLICT DO NOTHING'
    elif sql.startswith('INSERT OR REPLACE INTO '):
     table=sql.split()[4]
-    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot'),'avatar_profiles':('username,slot','avatar'),'character_positions':('username,slot','x=EXCLUDED.x,y=EXCLUDED.y,z=EXCLUDED.z,angle')}[table]
-    sql=sql.replace('INSERT OR REPLACE INTO ','INSERT INTO ',1)+f' ON CONFLICT ({keys}) DO UPDATE SET {field}=EXCLUDED.{field}'
+    keys,field={'admins':('username','permissions'),'upgrades':('username,slot,kind','rank'),'gear':('username,slot,kind','equipped'),'session_slots':('token','slot'),'avatar_profiles':('username,slot','avatar'),'character_positions':('username,slot','x,y,z,angle')}[table]
+    assignments=','.join(f'{col}=EXCLUDED.{col}' for col in field.split(','))
+    sql=sql.replace('INSERT OR REPLACE INTO ','INSERT INTO ',1)+f' ON CONFLICT ({keys}) DO UPDATE SET {assignments}'
    return self.conn.execute(sql,params)
   def commit(self): self.conn.commit()
 else:
@@ -356,7 +357,9 @@ class Handler(BaseHTTPRequestHandler):
     else: raise ValueError('Unknown endpoint')
    self.reply({'ok':True})
   except integrity_errors: self.reply({'ok':False,'error':'Account already exists'})
-  except database_errors: self.reply({'ok':False,'error':'Banco de dados indisponível'})
+  except database_errors as exc:
+   print('Database error:',type(exc).__name__,str(exc),flush=True)
+   self.reply({'ok':False,'error':'Banco de dados indisponível'})
   except (ValueError,TypeError,AttributeError) as e: self.reply({'ok':False,'error':str(e)})
  def reply(self,d):
   b=json.dumps(d).encode(); self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
