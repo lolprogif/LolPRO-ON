@@ -66,10 +66,9 @@ func _ready():
 	var voice = preload("res://voice.gd").new()
 	voice.net = self
 	add_child(voice)
-	if OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile"):
-		var controls = preload("res://touch.gd").new()
-		controls.world = world
-		layer.add_child(controls)
+	var controls = preload("res://touch.gd").new()
+	controls.world = world
+	layer.add_child(controls)
 	if get_tree().has_meta("online_endpoint"):
 		cloud_url = str(get_tree().get_meta("online_endpoint")).trim_suffix("/")
 		cloud_token = str(get_tree().get_meta("online_token",""))
