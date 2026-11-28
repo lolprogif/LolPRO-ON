@@ -733,6 +733,6 @@ func _input(event):
 		var old_size := p.size
 		p.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 		p.size = old_size
-		var pointer := root.get_local_mouse_position() if event is InputEventMouseMotion else event.position
+		var pointer: Vector2 = root.get_local_mouse_position() if event is InputEventMouseMotion else event.position
 		p.position = (pointer-drag_offset).clamp(Vector2.ZERO,Vector2(maxf(0,root.size.x-p.size.x),maxf(0,root.size.y-32)))
 		get_viewport().set_input_as_handled()
