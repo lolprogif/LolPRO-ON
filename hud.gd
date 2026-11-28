@@ -11,6 +11,7 @@ var quick_buttons: Array[Button] = []
 var drag_panel: Control
 var drag_offset := Vector2.ZERO
 var root: Control
+var target_panel: PanelContainer
 var windows := {}
 var coins := 100
 var level := 1
@@ -315,6 +316,41 @@ func _ready():
 		world.player.position = Vector3(0,0.1,0)
 		world.player.velocity = Vector3.ZERO)
 	label(tp,"Outros mapas e NPC físico: pendentes")
+func show_target_menu(target_name: String):
+	if not is_instance_valid(target_panel):
+		target_panel = panel_at(Vector2.ZERO,Vector2(520,92))
+		target_panel.name = "PlayerTargetMenu"
+		target_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		target_panel.offset_left = -260
+		target_panel.offset_right = 260
+		target_panel.offset_top = 38
+		target_panel.offset_bottom = 130
+		var outer := VBoxContainer.new()
+		target_panel.add_child(outer)
+		var header := HBoxContainer.new()
+		outer.add_child(header)
+		var name_label := Label.new()
+		name_label.name = "TargetName"
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		header.add_child(name_label)
+		button(header,"×",func(): target_panel.hide())
+		var actions := HBoxContainer.new()
+		actions.alignment = BoxContainer.ALIGNMENT_CENTER
+		actions.add_theme_constant_override("separation",4)
+		outer.add_child(actions)
+		for action_name in ["Segredo","Negociar","Duelo","Emoções","Amigo","Bloquear","Grupo"]:
+			var action := str(action_name)
+			button(actions,action,func(): target_action_notice(action))
+	var title_label := target_panel.find_child("TargetName",true,false) as Label
+	if is_instance_valid(title_label):
+		title_label.text = target_name
+	target_panel.show()
+	target_panel.move_to_front()
+func target_action_notice(action_name: String):
+	if is_instance_valid(chat):
+		chat.add_text("\\nSistema: " + action_name + " — interação social ainda não conectada ao servidor.")
+
 func panel_at(pos: Vector2, sz: Vector2) -> PanelContainer:
 	var p := PanelContainer.new()
 	root.add_child(p)
