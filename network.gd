@@ -22,6 +22,8 @@ var skill_index := -1
 var skill_events := {}
 var skill_buttons: Array[Button] = []
 var mana_label: Label
+var outgoing_chat := ""
+var outgoing_chat_seq := ""
 var skill_level := 1
 var skill_class := "Guerreiro"
 var skill_mana := 100
@@ -124,6 +126,9 @@ func remove_remote(id):
 func _process(delta):
 	for r in remotes.values():
 		r.node.position = r.node.position.lerp(r.target, minf(1.0,delta*15.0))
+		if Time.get_ticks_msec() >= int(r.get("chat_until",0)):
+			var speech: Label3D = r.get("chat_bubble")
+			if is_instance_valid(speech): speech.visible = false
 		r.node.rotation.y = lerp_angle(r.node.rotation.y,r.angle,minf(1.0,delta*15.0))
 	elapsed += delta
 	if elapsed < (0.25 if cloud_active else 0.05): return
@@ -131,7 +136,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"map_id":world.current_map,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"target_id":attack_target_id,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
+			var payload := {"token":cloud_token,"map_id":world.current_map,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"target_id":attack_target_id,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index,"chat":outgoing_chat,"chat_seq":outgoing_chat_seq}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -151,7 +156,7 @@ func submit(pos: Vector3, angle: float, state: String):
 @rpc("authority","call_remote","unreliable_ordered")
 func broadcast(id: int,pos: Vector3,angle: float,state: String):
 	if id != multiplayer.get_unique_id(): update_remote(id,pos,angle,state)
-func update_remote(id,pos: Vector3,angle: float,state: String,display_name: String = "", avatar: String = "whiteclown"):
+func update_remote(id,pos: Vector3,angle: float,state: String,display_name: String = "", avatar: String = "whiteclown", chat_text: String = "", chat_seq: String = ""):
 	if not state in ["Idle","Walking","Running","Jumping"]: return
 	if not remotes.has(id):
 		var n := Node3D.new()
@@ -162,10 +167,25 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 		tag.position.y = 2.1
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		n.add_child(tag)
-		remotes[id] = {"node":n,"target":pos,"angle":angle,"state":"","model":null}
+		var bubble := Label3D.new()
+		bubble.name = "RemoteChatBubble"
+		bubble.position = Vector3(0,2.65,0)
+		bubble.font_size = 28
+		bubble.outline_size = 7
+		bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		bubble.visible = false
+		n.add_child(bubble)
+		remotes[id] = {"node":n,"target":pos,"angle":angle,"state":"","model":null,"chat_seq":"","chat_until":0,"chat_bubble":bubble}
 	var r: Dictionary = remotes[id]
 	r.target = pos
 	r.angle = angle
+	if not chat_seq.is_empty() and chat_seq != str(r.get("chat_seq","")) and not chat_text.is_empty():
+		var speech: Label3D = r.get("chat_bubble")
+		if is_instance_valid(speech):
+			speech.text = chat_text.left(80)
+			speech.visible = true
+			r.chat_until = Time.get_ticks_msec()+4000
+		r.chat_seq = chat_seq
 	if not display_name.is_empty():
 		r.name = display_name.split(" • ")[0]
 		var hp_text := display_name.get_slice(" • ",1).replace(" HP","")
@@ -250,7 +270,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		var id := str(item["id"])
 		var p: Array = item["pos"]
 		seen[id] = true
-		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP",str(item.get("avatar","whiteclown")))
+		update_remote(id,Vector3(float(p[0]),float(p[1]),float(p[2])),float(item["angle"]),str(item["state"]),str(item["name"])+" • "+str(item.get("hp",100))+" HP",str(item.get("avatar","whiteclown")),str(item.get("chat_text","")),str(item.get("chat_seq","")))
 		if remotes.has(id):
 			var node: Node3D = remotes[id].node
 			world.show_gear(node,item)
@@ -269,6 +289,11 @@ func map_changed() -> void:
 	elapsed = 1.0
 	for id in remotes.keys():
 		remove_remote(id)
+
+func send_chat(message: String):
+	if cloud_active:
+		outgoing_chat = message.strip_edges().left(80)
+		outgoing_chat_seq = str(Time.get_ticks_usec())+"-"+str(randi())
 
 func request_attack(target_id: String = ""):
 	if cloud_active and health > 0:
