@@ -98,38 +98,28 @@ func _ready():
 	player.add_child(col)
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
 	if avatar_id == "warrior_m": avatar_id = "sura"
-	if avatar_id == "whiteclown":
-		# Mantém o conjunto de animações original do personagem masculino.
-		for state in ["Idle","Walking","Running","Jumping"]:
-			var scene = load("res://assets/"+state+".fbx")
-			if scene is PackedScene:
-				var model = scene.instantiate()
-				player.add_child(model)
-				model.hide()
-				models[state] = model
+	if avatar_id in ["whiteclown","sura"]:
+		# Carrega somente o Idle ao entrar. Caminhada, corrida e ataques são
+		# carregados sob demanda para reduzir o pico de memória no Windows.
+		using_brute = true
+		brute_motion_paths = {
+			"Idle":"Idle.fbx",
+			"Walking":"Walking.fbx",
+			"Running":"Running.fbx",
+			"Jumping":"Jumping.fbx",
+			"Attack1":"Sword And Shield Slash.fbx",
+			"Attack2":"Stable Sword Outward Slash.fbx"
+		}
+		ensure_brute_motion("Idle")
 	else:
-		if avatar_id == "sura":
-			# Carrega somente o Idle na entrada. Os demais FBX são carregados
-			# sob demanda para evitar uma tela cinza durante a entrada no mundo.
-			using_brute = true
-			brute_motion_paths = {
-				"Idle":"Idle.fbx",
-				"Walking":"Walking.fbx",
-				"Running":"Running.fbx",
-				"Jumping":"Jumping.fbx",
-				"Attack1":"Sword And Shield Slash.fbx",
-				"Attack2":"Stable Sword Outward Slash.fbx"
-			}
-			ensure_brute_motion("Idle")
+		var custom_path: String = "res://assets/Character.fbx"
+		var avatar_scene = load(custom_path)
+		if avatar_scene is PackedScene:
+			var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
+			player.add_child(avatar_model)
+			models["Avatar"] = avatar_model
 		else:
-			var custom_path: String = "res://assets/Character.fbx"
-			var avatar_scene = load(custom_path)
-			if avatar_scene is PackedScene:
-				var avatar_model: Node3D = avatar_scene.instantiate() as Node3D
-				player.add_child(avatar_model)
-				models["Avatar"] = avatar_model
-			else:
-				push_error("Modelo não importado: "+custom_path)
+			push_error("Modelo não importado: "+custom_path)
 	if models.is_empty():
 		push_error("Nenhum modelo FBX importado")
 	add_child(pivot)
@@ -165,13 +155,23 @@ func ensure_brute_motion(state: String) -> bool:
 		return true
 	if not brute_motion_paths.has(state):
 		return false
+	# Mantém o Idle para retarget do pulo e libera a animação anterior.
+	# Assim nunca ficam todos os FBX de movimento carregados ao mesmo tempo.
+	for existing_state in models.keys().duplicate():
+		if existing_state != "Idle" and existing_state != state:
+			var previous: Node = models[existing_state]
+			if is_instance_valid(previous):
+				player.remove_child(previous)
+				previous.queue_free()
+			models.erase(existing_state)
 	var motion_path := "res://assets/" + str(brute_motion_paths[state])
 	var motion_scene = load(motion_path)
 	if not motion_scene is PackedScene:
-		push_warning("Animação do Brute não importada: " + motion_path)
+		push_warning("Animação não importada: " + motion_path)
 		return false
 	var motion_model := motion_scene.instantiate() as Node3D
 	if motion_model == null:
+		push_warning("Não foi possível instanciar a animação: " + motion_path)
 		return false
 	player.add_child(motion_model)
 	motion_model.name = "Brute_" + state
