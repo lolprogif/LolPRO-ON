@@ -180,6 +180,13 @@ func _ready():
 			else: toggle(n))
 		extra.tooltip_text = n
 
+	var settings_shortcut := button(root,"⚙ Opções",func(): toggle("Opções"))
+	settings_shortcut.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	settings_shortcut.offset_left = -124
+	settings_shortcut.offset_right = -42
+	settings_shortcut.offset_top = 218
+	settings_shortcut.offset_bottom = 250
+
 	var attack_button := Button.new()
 	attack_button.text = "⚔ ATACAR" if OS.has_feature("mobile") else "⚔ ATACAR"
 	attack_button.tooltip_text = "Ataque básico"
