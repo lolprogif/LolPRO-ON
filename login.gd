@@ -398,7 +398,12 @@ func _process(delta):
 			loading = false
 			progress.value = 100
 			var scene := ResourceLoader.load_threaded_get("res://World.tscn") as PackedScene
-			await get_tree().create_timer(0.5).timeout
+			if scene == null:
+				loading_label.text = "O mapa não pôde ser preparado. Volte e tente novamente."
+				return
+			await get_tree().process_frame
+			if not is_inside_tree():
+				return
 			get_tree().change_scene_to_packed(scene)
 		elif state == ResourceLoader.THREAD_LOAD_FAILED or state == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 			loading = false
@@ -738,6 +743,13 @@ func start_loading():
 	if is_instance_valid(preview_stage):
 		preview_stage.queue_free()
 		preview_stage = null
+	# Aguarda a destruição real da prévia 3D antes de iniciar o carregamento
+	# do mundo. queue_free() sozinho só libera os nós no fim do frame; sem esta
+	# pausa, a prévia e o mapa podem disputar memória/GPU durante a transição.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
 	selection.hide()
 	fade = ColorRect.new()
 	fade.color = Color("101b29")
