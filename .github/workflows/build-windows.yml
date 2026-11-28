@@ -42,6 +42,14 @@ jobs:
           Copy-Item "templates/templates/*" "$env:APPDATA/Godot/export_templates/$version.stable" -Recurse -Force
           "GODOT_EXE=$godot" | Out-File -Append $env:GITHUB_ENV
 
+      - name: Extrair personagem Agent
+        shell: pwsh
+        run: |
+          Expand-Archive assets/The_Secret_Agent.zip -DestinationPath "$env:RUNNER_TEMP/agent" -Force
+          $model = Get-ChildItem "$env:RUNNER_TEMP/agent" -Recurse -Filter *.glb | Select-Object -First 1
+          if (-not $model) { throw "GLB ausente no ZIP" }
+          Copy-Item $model.FullName assets/The_Secret_Agent.glb -Force
+
       - name: Importar projeto
         run: '& "$env:GODOT_EXE" --headless --editor --path . --import'
 
