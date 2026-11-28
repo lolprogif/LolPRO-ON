@@ -299,6 +299,9 @@ class Handler(BaseHTTPRequestHandler):
        me['potion_seq']=potion
        if 0<me['hp']<me.get('max_hp',100) and me['potions']>0:
         me['potions']-=1; me['hp']=min(me.get('max_hp',100),me['hp']+20)
+      for online_player in players.values():
+       online_player.setdefault('chat_text','')
+       online_player.setdefault('chat_seq','')
       others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks','chat_text','chat_seq')} for key,item in players.items() if key!=row[0] and item.get('map_id','valoria')==map_id]
       for item in others:
        source=players[item['id']]
