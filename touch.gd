@@ -101,7 +101,43 @@ func finish_edit():
 	fingers.clear()
 	toolbar.hide()
 func _input(event):
-	if event is InputEventScreenTouch:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			if editing and toolbar.get_global_rect().has_point(event.position): return
+			var hit := ""
+			var nearest := INF
+			for key in defaults:
+				var d: float = event.position.distance_to(center(key))
+				if d <= float(radii[key]) and d < nearest:
+					hit = key
+					nearest = d
+			if hit.is_empty(): return
+			fingers[-1] = [hit,event.position]
+			if editing:
+				selected = hit
+				size_slider.set_value_no_signal(radii[hit])
+			elif hit == "jump": world.touch_jump = true
+			elif hit == "attack": world.attack()
+			elif hit == "run": world.touch_run = not world.touch_run
+			elif hit == "mic": get_tree().call_group("voice_controls","toggle_mic")
+			get_viewport().set_input_as_handled()
+		elif fingers.has(-1):
+			var released_key: String = fingers[-1][0]
+			if released_key == "move": world.touch_dir = Vector2.ZERO
+			if released_key == "jump": world.touch_jump = false
+			fingers.erase(-1)
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and fingers.has(-1):
+		var mouse_key: String = fingers[-1][0]
+		if editing:
+			var viewport_size := get_viewport_rect().size
+			var radius := float(radii[mouse_key])
+			positions[mouse_key] = event.position.clamp(Vector2(radius,radius),Vector2(maxf(radius,viewport_size.x-radius),maxf(radius,viewport_size.y-radius)))/viewport_size
+		elif mouse_key == "move":
+			world.touch_dir = ((event.position-fingers[-1][1])/float(radii[mouse_key])).limit_length()
+		fingers[-1][1] = event.position
+		get_viewport().set_input_as_handled()
+	elif event is InputEventScreenTouch:
 		if event.pressed:
 			if editing and toolbar.get_global_rect().has_point(event.position): return
 			var hit := ""
