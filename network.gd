@@ -10,6 +10,7 @@ var cloud_token := ""
 var cloud_request := HTTPRequest.new()
 var cloud_active := false
 var attack_seq := ""
+var attack_target_id := ""
 var potion_seq := ""
 var item_seq := ""
 var item_action := ""
@@ -131,7 +132,7 @@ func _process(delta):
 	if cloud_active:
 		if cloud_request.get_http_client_status() == HTTPClient.STATUS_DISCONNECTED:
 			var p: Vector3 = world.player.position
-			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
+			var payload := {"token":cloud_token,"pos":[p.x,p.y,p.z],"angle":world.player.rotation.y,"state":world.current,"attack":attack_seq,"target_id":attack_target_id,"free_combat":world.free_combat,"potion":potion_seq,"generation":generation,"item":item_seq,"item_action":item_action,"skill_seq":skill_seq,"skill_index":skill_index}
 			var err := cloud_request.request(cloud_url+"/world",["Content-Type: application/json"],HTTPClient.METHOD_POST,JSON.stringify(payload))
 			if err != OK: status.text = "Falha na conexão online"
 		return
@@ -166,6 +167,8 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 	var r: Dictionary = remotes[id]
 	r.target = pos
 	r.angle = angle
+	if not display_name.is_empty():
+		r.name = display_name.split(" • ")[0]
 	if r.state == state and r.get("avatar","") == avatar: return
 	if is_instance_valid(r.model): r.model.queue_free()
 	var model_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb","erika_archer":"res://assets/erika_archer.fbx","maria":"res://assets/maria.fbx"}.get(avatar,"res://assets/"+state+".fbx"))
@@ -242,8 +245,10 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 		if not seen.has(id): remove_remote(id)
 	status.text = "Online HTTPS • %d jogador(es)" % (seen.size()+1)
 
-func request_attack():
-	if cloud_active and health > 0: attack_seq = str(Time.get_ticks_usec())+"-"+str(randi())
+func request_attack(target_id: String = ""):
+	if cloud_active and health > 0:
+		attack_target_id = target_id
+		attack_seq = str(Time.get_ticks_usec())+"-"+str(randi())
 func request_potion():
 	if cloud_active: potion_seq = str(Time.get_ticks_usec())+"-"+str(randi())
 
