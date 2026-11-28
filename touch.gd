@@ -7,7 +7,7 @@ var radii := {}
 var editing := false
 var selected := "attack"
 var settings := ConfigFile.new()
-var toolbar: HBoxContainer
+var toolbar: VBoxContainer
 var size_slider: HSlider
 var profile := "offline"
 var toolbar_drag := false
@@ -28,25 +28,44 @@ func _ready():
 		var p = settings.get_value(profile,key,defaults[key])
 		if p is Vector2: positions[key] = p.clamp(Vector2.ZERO,Vector2.ONE)
 		radii[key] = clampf(float(settings.get_value(profile,key+"_radius",radii[key])),24,85)
-	toolbar = HBoxContainer.new()
+	toolbar = VBoxContainer.new()
 	add_child(toolbar)
 	toolbar.position = settings.get_value(profile,"toolbar_position",Vector2(8,8))
+	var panel_theme := Theme.new()
+	panel_theme.default_font_size = 14
+	for state in ["normal","hover","pressed","focus"]:
+		var skin := StyleBoxFlat.new()
+		skin.bg_color = Color("17151eee")
+		skin.border_color = Color("c4a15d")
+		skin.set_border_width_all(1)
+		skin.set_corner_radius_all(7)
+		skin.content_margin_left = 10
+		skin.content_margin_right = 10
+		skin.content_margin_top = 6
+		skin.content_margin_bottom = 6
+		panel_theme.set_stylebox(state,"Button",skin)
+	toolbar.theme = panel_theme
 	var grip := Button.new()
-	grip.text = "↔ Mover HUD"
+	grip.text = "↔ Editor de HUD"
 	toolbar.add_child(grip)
 	grip.gui_input.connect(drag_toolbar)
+	var actions := HBoxContainer.new()
+	toolbar.add_child(actions)
 	var save := Button.new()
-	save.text = "Salvar HUD"
-	toolbar.add_child(save)
+	save.text = "Salvar"
+	actions.add_child(save)
 	save.pressed.connect(save_layout)
 	var reset := Button.new()
-	reset.text = "Restaurar padrão"
-	toolbar.add_child(reset)
+	reset.text = "Padrão"
+	actions.add_child(reset)
 	reset.pressed.connect(func(): reset_layout(); size_slider.set_value_no_signal(radii[selected]))
 	var cancel := Button.new()
 	cancel.text = "Cancelar"
-	toolbar.add_child(cancel)
+	actions.add_child(cancel)
 	cancel.pressed.connect(cancel_layout)
+	var size_label := Label.new()
+	size_label.text = "Tamanho do botão selecionado"
+	toolbar.add_child(size_label)
 	size_slider = HSlider.new()
 	size_slider.min_value = 24
 	size_slider.max_value = 85
@@ -104,7 +123,6 @@ func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			if editing and toolbar.get_global_rect().has_point(event.position):
-				get_viewport().set_input_as_handled()
 				return
 			var hit := ""
 			var nearest := INF
@@ -141,7 +159,6 @@ func _input(event):
 	elif event is InputEventScreenTouch:
 		if event.pressed:
 			if editing and toolbar.get_global_rect().has_point(event.position):
-				get_viewport().set_input_as_handled()
 				return
 			var hit := ""
 			var nearest := INF
