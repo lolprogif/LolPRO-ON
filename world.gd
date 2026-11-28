@@ -1,6 +1,7 @@
 extends Node3D
 var free_combat := false
 var click_moving := false
+var auto_attack := false
 var click_destination := Vector3.ZERO
 var combat_target: Node3D
 var selected_remote_id := ""
@@ -304,8 +305,9 @@ func play_jump_on_selected_model() -> bool:
 	return true
 
 func _notification(what: int):
-	# Nunca deixe o cursor preso se a janela perder ou recuperar o foco.
-	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+	# Libera o cursor apenas ao sair da janela; ao voltar, o jogador decide
+	# travar/destravar novamente pelo botão direito do mouse.
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event):
@@ -313,7 +315,7 @@ func _unhandled_input(event):
 		if select_remote_at(event.position):
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		else:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 		get_viewport().set_input_as_handled()
 		return
 	if not OS.has_feature("mobile") and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -324,13 +326,9 @@ func _unhandled_input(event):
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * 0.003
 		pitch = clamp(pitch-event.relative.y*0.003,-1.2,0.15)
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP: distance = max(2.0,distance-0.5)
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN: distance = min(12.0,distance+0.5)
-	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 func select_remote_at(screen_pos: Vector2) -> bool:
 	if not is_instance_valid(net):
 		return false
@@ -354,6 +352,7 @@ func select_remote_at(screen_pos: Vector2) -> bool:
 		return false
 	selected_remote_id = best_id
 	combat_target = best_node
+	auto_attack = false
 	click_moving = false
 	target_marker.visible = true
 	target_marker.global_position = best_node.global_position + Vector3(0,0.045,0)
@@ -379,16 +378,33 @@ func _physics_process(delta):
 	direction = direction.normalized().rotated(Vector3.UP,yaw)
 	if direction.length()>0.01:
 		click_moving = false
+		auto_attack = false
+	elif auto_attack and is_instance_valid(combat_target):
+		if not target_is_alive(combat_target):
+			auto_attack = false
+			combat_target = null
+			selected_remote_id = ""
+			target_marker.visible = false
+			click_moving = false
+		else:
+			click_destination = combat_target.global_position
+			var attack_offset := click_destination-player.global_position
+			attack_offset.y = 0
+			if attack_offset.length() > 1.85:
+				direction = attack_offset.normalized()
+				click_moving = true
+			else:
+				click_moving = false
+				player.rotation.y = atan2(attack_offset.x,attack_offset.z)
+				if attack_cooldown <= 0.0:
+					attack()
 	elif click_moving:
-		if is_instance_valid(combat_target): click_destination = combat_target.global_position
 		var offset := click_destination-player.global_position
 		offset.y = 0
-		if offset.length() <= (1.6 if is_instance_valid(combat_target) else 0.3):
+		if offset.length() <= 0.3:
 			click_moving = false
-			if is_instance_valid(combat_target):
-				player.rotation.y = atan2(offset.x,offset.z)
-				attack()
-		else: direction = offset.normalized()
+		else:
+			direction = offset.normalized()
 	var running: bool = not touch_run # Corrida padrão; botão redondo alterna para caminhada.
 	var speed: float = 5.2 if running else 2.8
 	player.velocity.x = move_toward(player.velocity.x,direction.x*speed,delta*18.0)
@@ -452,6 +468,17 @@ func acquire_nearby_target(max_distance: float = 7.0) -> Node3D:
 			best = candidate
 	return best
 
+func target_is_alive(target: Node3D) -> bool:
+	if not is_instance_valid(target):
+		return false
+	if target.is_in_group("attackable") and target.get("health") != null:
+		return int(target.get("health")) > 0
+	if is_instance_valid(net):
+		for entry in net.remotes.values():
+			if entry.get("node") == target:
+				return int(entry.get("hp",100)) > 0
+	return true
+
 func attack():
 	if attack_cooldown > 0.0 or get_viewport().gui_get_focus_owner() is LineEdit:
 		return
@@ -467,6 +494,7 @@ func attack():
 	if target_distance > 2.15:
 		click_destination = combat_target.global_position
 		click_moving = true
+		auto_attack = true
 		return
 	if target_distance > 0.05:
 		player.rotation.y = atan2(target_offset.x,target_offset.z)
@@ -1150,6 +1178,8 @@ func click_world(screen_pos: Vector2):
 	if is_instance_valid(combat_target):
 		click_destination = combat_target.global_position
 		click_moving = true
+		auto_attack = true
 	elif not hit.is_empty():
+		auto_attack = false
 		click_destination = hit.position
 		click_moving = true
