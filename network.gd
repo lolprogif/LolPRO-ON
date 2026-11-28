@@ -173,7 +173,7 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 			r.hp = int(hp_text)
 	if r.state == state and r.get("avatar","") == avatar: return
 	if is_instance_valid(r.model): r.model.queue_free()
-	var model_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb","erika_archer":"res://assets/erika_archer.fbx","maria":"res://assets/maria.fbx"}.get(avatar,"res://assets/"+state+".fbx"))
+	var model_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb","secret_agent":"res://assets/The_Secret_Agent.glb","erika_archer":"res://assets/erika_archer.fbx","maria":"res://assets/maria.fbx"}.get(avatar,"res://assets/"+state+".fbx"))
 	var model = load(model_path).instantiate()
 	r.avatar = avatar
 	r.node.add_child(model)
