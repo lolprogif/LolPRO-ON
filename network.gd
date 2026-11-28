@@ -277,7 +277,7 @@ func cloud_done(result: int, code: int, _headers: PackedStringArray, body: Packe
 			show_remote_pet(node,item.get("pet",{}))
 			show_skill_event(id,node,item,str(item.get("class_name","Guerreiro")))
 			for child in node.get_children():
-				if child is Label3D: child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
+				if child is Label3D and child.name != "RemoteChatBubble": child.text = str(item["name"])+" • "+str(item.get("hp",100))+" HP"
 			var seq := str(item.get("attack_seq",""))
 			if remote_attacks.has(id) and remote_attacks[id] != seq and not seq.is_empty(): world.attack_effect(node)
 			remote_attacks[id] = seq
