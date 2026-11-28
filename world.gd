@@ -419,20 +419,6 @@ func _physics_process(delta):
 	player.move_and_slide()
 	if player.is_on_floor():
 		jumping = false
-	# Entering either portal changes the logical online map and moves the
-	# character to that map's spawn. This works on mouse, keyboard and touch.
-	if Time.get_ticks_msec() >= portal_lock_until:
-		var portal_distance := 999.0
-		var portal_destination := ""
-		if current_map == "valoria":
-			portal_distance = Vector2(player.global_position.x,player.global_position.z).distance_to(Vector2(0.0,-30.5))
-			portal_destination = "bosses"
-		else:
-			portal_distance = Vector2(player.global_position.x-70.0,player.global_position.z-50.0).length()
-			portal_destination = "valoria"
-		if portal_distance <= 3.8:
-			travel_to_map(portal_destination)
-			portal_lock_until = Time.get_ticks_msec()+2500
 	if player.position.y < -10: player.position = Vector3(0,0.65,0)
 	if direction.length() > 0.01: player.rotation.y = lerp_angle(player.rotation.y,atan2(direction.x,direction.z),1.0-exp(-12.0*delta))
 	if Time.get_ticks_msec() >= attack_anim_until:
