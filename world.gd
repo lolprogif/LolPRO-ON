@@ -303,6 +303,11 @@ func play_jump_on_selected_model() -> bool:
 	ap.play(clip_name, -1.0, ap.get_animation(clip_name).length / JUMP_DURATION)
 	return true
 
+func _notification(what: int):
+	# Nunca deixe o cursor preso se a janela perder ou recuperar o foco.
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
 func _unhandled_input(event):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		if select_remote_at(event.position):
