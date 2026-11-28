@@ -198,7 +198,7 @@ func _ready():
 	attack_button.offset_top = -140
 	attack_button.offset_bottom = -92
 	attack_button.pressed.connect(func(): world.attack())
-	attack_button.visible = not (OS.get_name() in ["Android","iOS"] or OS.has_feature("mobile"))
+	attack_button.visible = false
 
 	var cp := panel_at(Vector2.ZERO,Vector2(340,110))
 	cp.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
@@ -321,10 +321,9 @@ func _ready():
 		world.touch_sensitivity = value
 		settings.set_value("controls","sensitivity",value)
 		settings.save("user://settings.cfg"))
-	if OS.has_feature("mobile"):
-		button(opt_window,"Personalizar HUD",func():
-			windows["Opções"].hide()
-			get_tree().call_group("mobile_hud","edit_layout"))
+	button(opt_window,"Personalizar HUD",func():
+		windows["Opções"].hide()
+		get_tree().call_group("mobile_hud","edit_layout"))
 	button(opt_window,"Ajuda / controles",func(): toggle("Ajuda"))
 	button(opt_window,"Tela cheia / janela",func(): DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else DisplayServer.WINDOW_MODE_FULLSCREEN))
 	button(opt_window,"Teleportador",func(): toggle("Teleportador"))
