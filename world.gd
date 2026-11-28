@@ -37,6 +37,9 @@ var portal_dialog: ConfirmationDialog
 var current_map: String = "valoria"
 const BOSS_CENTER := Vector3(1000,0,1000)
 const BOSS_HALF := 250.0
+var graphics_environment: Environment
+var graphics_sun: DirectionalLight3D
+var graphics_quality: int = 1
 func _ready():
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
@@ -56,6 +59,11 @@ func _ready():
 	sun.rotation_degrees = Vector3(-55,-35,0)
 	sun.shadow_enabled = not OS.has_feature("mobile")
 	add_child(sun)
+	graphics_environment = env.environment
+	graphics_sun = sun
+	var graphics_config := ConfigFile.new()
+	graphics_config.load("user://graphics.cfg")
+	apply_graphics(int(graphics_config.get_value("graphics","quality",1)))
 	var ground := StaticBody3D.new()
 	add_child(ground)
 	create_valoria()
@@ -65,7 +73,7 @@ func _ready():
 	plane.size = Vector2(200,200)
 	mesh.mesh = plane
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.16,0.19,0.20)
+	mat.albedo_color = Color(0.38,0.49,0.27)
 	var noise := NoiseTexture2D.new()
 	noise.width = 512
 	noise.height = 512
@@ -73,6 +81,10 @@ func _ready():
 	var grass_noise := FastNoiseLite.new()
 	grass_noise.frequency = 0.12
 	noise.noise = grass_noise
+	var grass_colors := Gradient.new()
+	grass_colors.colors = PackedColorArray([Color(0.35,0.43,0.22),Color(0.86,0.91,0.65)])
+	noise.color_ramp = grass_colors
+	mat.roughness = 0.95
 	mat.albedo_texture = noise
 	mat.uv1_scale = Vector3(90,90,90)
 	mesh.material_override = mat
@@ -1174,3 +1186,23 @@ func click_world(screen_pos: Vector2):
 		auto_attack = false
 		click_destination = hit.position
 		click_moving = true
+
+func apply_graphics(quality: int) -> void:
+	graphics_quality = clampi(quality,0,3)
+	var q := graphics_quality
+	graphics_sun.shadow_enabled = q >= 1
+	graphics_sun.directional_shadow_max_distance = [25.0,45.0,80.0,120.0][q]
+	graphics_sun.light_color = Color(1.0,0.93,0.81)
+	graphics_sun.light_energy = 1.15
+	graphics_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	graphics_environment.ambient_light_color = Color(0.70,0.80,0.94)
+	graphics_environment.ambient_light_energy = 0.65
+	graphics_environment.fog_enabled = q >= 1
+	graphics_environment.fog_density = 0.002
+	graphics_environment.adjustment_enabled = q >= 2
+	graphics_environment.adjustment_contrast = 1.08
+	graphics_environment.adjustment_saturation = 1.10
+	get_viewport().msaa_3d = [Viewport.MSAA_DISABLED,Viewport.MSAA_DISABLED,Viewport.MSAA_2X,Viewport.MSAA_4X][q]
+	var cfg := ConfigFile.new()
+	cfg.set_value("graphics","quality",q)
+	cfg.save("user://graphics.cfg")
