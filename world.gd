@@ -321,6 +321,8 @@ func _unhandled_input(event):
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP: distance = max(2.0,distance-0.5)
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN: distance = min(12.0,distance+0.5)
+	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 func select_remote_at(screen_pos: Vector2) -> bool:
 	if not is_instance_valid(net):
 		return false
