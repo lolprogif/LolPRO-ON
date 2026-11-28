@@ -1063,20 +1063,9 @@ func create_test_monster() -> void:
 			skeleton.set_bone_pose_rotation(i, skeleton.get_bone_pose_rotation(i) * local_delta.get_rotation_quaternion())
 
 func create_boss_map() -> void:
-	# Área de bosses separada fisicamente da cidade. O servidor também separa
-	# os jogadores pelo map_id, portanto não há mistura de personagens entre mapas.
-	var floor_color := Color("34313d")
-	var wall_color := Color("252b38")
-	map_box("BossMapFloor",Vector3(70,-0.15,70),Vector3(48,0.5,48),floor_color)
-	map_box("BossMapNorthWall",Vector3(70,4,46),Vector3(48,8,1),wall_color)
-	map_box("BossMapSouthWall",Vector3(70,4,94),Vector3(48,8,1),wall_color)
-	map_box("BossMapEastWall",Vector3(94,4,70),Vector3(1,8,48),wall_color)
-	map_box("BossMapWestWall",Vector3(46,4,70),Vector3(1,8,48),wall_color)
-	for i in range(4):
-		var x := 57.0 + float(i)*8.5
-		map_box("BossPillar",Vector3(x,2.5,58),Vector3(1.2,5,1.2),Color("59404a"))
-		map_box("BossPillar",Vector3(x,2.5,82),Vector3(1.2,5,1.2),Color("59404a"))
-	map_box("BossArenaPlatform",Vector3(70,0.16,70),Vector3(20,0.18,20),Color("514454"),false)
+	# Novo mapa aberto, com a mesma área útil (48 x 48), sem construções,
+	# paredes ou pilares. Mantém somente o portal e o NPC de retorno.
+	map_box("BossMapFloor",Vector3(70,-0.15,70),Vector3(48,0.5,48),Color("34313d"))
 	castle_portal(Vector3(70,2.6,50),Vector3(0,0.2,0))
 	create_boss_return_guard()
 
@@ -1103,12 +1092,12 @@ func create_boss_return_guard() -> void:
 func try_guard_click(screen_pos: Vector2) -> bool:
 	var chosen: Node3D = null
 	var destination := ""
-	var best_distance := 65.0
+	var best_distance := 105.0
 	for entry in [{"node":portal_guard,"destination":"bosses"},{"node":boss_return_guard,"destination":"valoria"}]:
 		var guard: Node3D = entry.node
 		if not is_instance_valid(guard):
 			continue
-		if player.global_position.distance_to(guard.global_position) > 8.0:
+		if player.global_position.distance_to(guard.global_position) > 12.0:
 			continue
 		var target := guard.global_position + Vector3(0,0.9,0)
 		if camera.is_position_behind(target):
@@ -1144,6 +1133,7 @@ func travel_to_map(destination: String) -> void:
 	selected_remote_id = ""
 	if current_map == "bosses":
 		player.global_position = Vector3(70,0.75,70)
+		# Spawn voltado para o portal/NPC de retorno.
 		player.rotation.y = PI
 	else:
 		player.global_position = Vector3(0,0.75,0)
