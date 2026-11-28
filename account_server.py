@@ -251,7 +251,7 @@ class Handler(BaseHTTPRequestHandler):
       me['max_hp']=100+ph
       if me['hp']>0: me['hp']=max(1,min(me['max_hp'],me['hp']+me['max_hp']-old_max))
       me['pet'].update(attack=pa,defense=pd,life=ph)
-      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now,map_id=map_id,free_combat=d.get('free_combat') is True)
+      me.update(name=row[1],pos=pos,angle=angle,state=state,seen=now,map_id=map_id,free_combat=d.get('free_combat') is True,chat_text=str(d.get('chat','')).strip()[:80],chat_seq=str(d.get('chat_seq',''))[:80])
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
        me['attack_seq']=seq
@@ -299,7 +299,7 @@ class Handler(BaseHTTPRequestHandler):
        me['potion_seq']=potion
        if 0<me['hp']<me.get('max_hp',100) and me['potions']>0:
         me['potions']-=1; me['hp']=min(me.get('max_hp',100),me['hp']+20)
-      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks')} for key,item in players.items() if key!=row[0] and item.get('map_id','valoria')==map_id]
+      others=[{k:item[k] for k in ('id','name','pos','angle','state','hp','attack_seq','weapon','armor','gear','ranks','chat_text','chat_seq')} for key,item in players.items() if key!=row[0] and item.get('map_id','valoria')==map_id]
       for item in others:
        source=players[item['id']]
        item['pet']=source.get('pet',{})
