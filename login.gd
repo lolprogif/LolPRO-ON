@@ -724,11 +724,20 @@ func start_loading():
 	if is_instance_valid(preview_actor):
 		if play_preview("Walking"):
 			var cinematic := create_tween().set_parallel(true)
-			cinematic.tween_property(preview_actor,"position:z",0.0,2.0)
-			cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),2.0)
+			cinematic.tween_property(preview_actor,"position:z",0.0,1.0)
+			cinematic.tween_property(preview_camera,"position",Vector3(0.7,1.5,3.0),1.0)
 			await cinematic.finished
 		else:
 			play_preview("Idle")
+	# Libera a instância e a viewport da prévia antes de carregar o mundo.
+	# O Agent contém várias animações e texturas; manter a prévia viva durante
+	# a carga do mapa pode duplicar o pico de memória e deixar a janela cinza.
+	if is_instance_valid(preview_actor):
+		preview_actor.queue_free()
+		preview_actor = null
+	if is_instance_valid(preview_stage):
+		preview_stage.queue_free()
+		preview_stage = null
 	selection.hide()
 	fade = ColorRect.new()
 	fade.color = Color("101b29")
@@ -769,10 +778,11 @@ func start_loading():
 	fade.modulate.a = 0.0
 	create_tween().tween_property(fade,"modulate:a",1.0,0.7)
 	await get_tree().create_timer(0.8).timeout
-	if ResourceLoader.load_threaded_request("res://World.tscn") == OK:
+	var load_error := ResourceLoader.load_threaded_request("res://World.tscn")
+	if load_error == OK:
 		loading = true
 	else:
-		loading_label.text = "Não foi possível iniciar o carregamento."
+		loading_label.text = "Falha ao iniciar o carregamento (%s). Volte e tente novamente." % error_string(load_error)
 
 func build_preview(parent: VBoxContainer):
 	var container := SubViewportContainer.new()
@@ -805,48 +815,59 @@ func build_preview(parent: VBoxContainer):
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
+
 func play_preview(state: String) -> bool:
-	if preview_avatar == "secret_agent":
-		var agent_path := "res://assets/The_Secret_Agent.glb"
-		var agent_scene = load(agent_path)
-		if not agent_scene is PackedScene:
-			push_warning("Secret Agent ainda não foi importado: "+agent_path)
-			return false
-		if is_instance_valid(preview_actor): preview_actor.queue_free()
-		preview_actor = agent_scene.instantiate() as Node3D
-		preview_stage.add_child(preview_actor)
-		for node in preview_actor.find_children("*","AnimationPlayer",true,false):
-			var ap: AnimationPlayer = node
-			for clip in ap.get_animation_list():
-				if clip == "RESET": continue
-				var clip_name := String(clip).to_lower()
-				if state == "Walking" and not ("walk" in clip_name): continue
-				ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
-				ap.play(clip)
-				return true
-		return true
-	var model_file: String = "Walking.fbx" if state == "Walking" else "Idle.fbx"
-	if preview_avatar == "sura":
-		model_file = "Walking.fbx" if state == "Walking" else "Idle.fbx"
-	var custom_path: String = "res://assets/" + model_file if preview_avatar == "sura" else str("res://assets/" + model_file if preview_avatar == "whiteclown" else "res://assets/Character.fbx")
-	var scene = load(custom_path)
+	var is_agent := preview_avatar == "secret_agent"
+	var model_file := "Walking.fbx" if state == "Walking" else "Idle.fbx"
+	var model_path := "res://assets/The_Secret_Agent.glb" if is_agent else "res://assets/" + model_file
+	if not is_agent and preview_avatar not in ["whiteclown","sura"]:
+		model_path = "res://assets/Character.fbx"
+	var scene = load(model_path)
 	if not scene is PackedScene:
-		push_warning("Modelo de personagem não importado: "+model_file)
+		push_warning("Modelo de personagem não importado: "+model_path)
 		return false
-	if is_instance_valid(preview_actor): preview_actor.queue_free()
+	if is_instance_valid(preview_actor):
+		preview_actor.queue_free()
+		preview_actor = null
 	preview_actor = scene.instantiate() as Node3D
+	if preview_actor == null:
+		return false
 	preview_stage.add_child(preview_actor)
-	for node in preview_actor.find_children("*","AnimationPlayer",true,false):
+	var players := preview_actor.find_children("*","AnimationPlayer",true,false)
+	for node in players:
 		var ap: AnimationPlayer = node
-		for clip in ap.get_animation_list():
-			if clip == "RESET": continue
-			var clip_name := String(clip).to_lower()
-			if state == "Walking" and preview_avatar != "whiteclown" and not ("walk" in clip_name or "walking" in clip_name):
-				continue
-			ap.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
-			ap.play(clip)
-			return true
-	return false
+		var clips := ap.get_animation_list()
+		var preferred := ""
+		# Nunca usar a primeira animação às cegas: o pacote Agent inclui
+		# movimentos de queda/paraquedas que não são a pose de seleção.
+		var exact_names := ["idle loop","idle","standing","stand","wait"] if state == "Idle" else ["walk loop","walking","walk"]
+		for wanted in exact_names:
+			for clip in clips:
+				var normalized := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+				if clip == "RESET":
+					continue
+				if normalized == wanted:
+					preferred = String(clip)
+					break
+			if not preferred.is_empty():
+				break
+		if preferred.is_empty() and state == "Idle":
+			for clip in clips:
+				var normalized := String(clip).to_lower().replace("_"," ").replace("-"," ").strip_edges()
+				if clip == "RESET" or "parachute" in normalized or "fall" in normalized or "jump" in normalized or "death" in normalized or "walk" in normalized or "run" in normalized:
+					continue
+				preferred = String(clip)
+				break
+		if preferred.is_empty():
+			# Se não houver Walk, manter o personagem parado é melhor que
+			# executar uma animação de queda ou de paraquedas.
+			continue
+		var animation := ap.get_animation(preferred)
+		animation.loop_mode = Animation.LOOP_LINEAR if state == "Idle" or state == "Walking" else Animation.LOOP_NONE
+		ap.stop()
+		ap.play(preferred,0.12)
+		return true
+	return is_agent and state == "Idle"
 
 func rotate_preview(degrees: float):
 	if is_instance_valid(preview_actor):
