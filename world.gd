@@ -770,7 +770,7 @@ func create_valoria():
 	for x in [-8.0,-4.0,4.0,8.0]:
 		map_box("TempleColumn", Vector3(x,4.0,-28.2), Vector3(0.9,6.2,0.9), red)
 		map_box("ColumnBase", Vector3(x,1.1,-28.2), Vector3(1.5,0.8,1.5), gold)
-	# Blue walk-through portal in the original temple.
+	# Portão japonês decorativo; acesso controlado pelo NPC guardião.
 	castle_portal(Vector3(0,3.6,-30.5),Vector3(0,0.2,70))
 	create_portal_guard()
 	create_test_monster()
@@ -910,77 +910,24 @@ func castle_tower(pos: Vector3, h: float, radius: float):
 		map_box("TowerTrim",pos+Vector3(cos(angle)*radius,h-0.5,sin(angle)*radius),Vector3(0.6,1.2,0.6),Color("9b9383"),false)
 
 func castle_portal(pos: Vector3, _destination: Vector3):
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 2.15
-	torus.outer_radius = 2.65
-	torus.rings = 32
-	torus.ring_segments = 12
-	ring.mesh = torus
-	var rim_mat := StandardMaterial3D.new()
-	rim_mat.albedo_color = Color("58cfff")
-	rim_mat.emission_enabled = true
-	rim_mat.emission = Color("249dff")
-	rim_mat.emission_energy_multiplier = 2.5
-	ring.material_override = rim_mat
-	add_child(ring)
-	ring.position = pos
-	ring.rotation_degrees.x = 90
-	var disc := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(4.3,4.3)
-	disc.mesh = quad
-	var shader := Shader.new()
-	shader.code = """shader_type spatial;
-render_mode unshaded, cull_disabled;
-void fragment(){
- vec2 p=UV*2.0-1.0;
- float r=length(p);
- if(r>1.0){discard;}
- float a=atan(p.y,p.x);
- float spiral=pow(0.5+0.5*sin(a*5.0-r*19.0+TIME*3.0),4.0);
- float rim=exp(-pow((r-0.94)*24.0,2.0));
- float pulse=0.8+0.2*sin(TIME*3.0);
- float core=exp(-r*r*8.0);
- vec3 glow=vec3(0.04,0.22,0.65)+vec3(0.15,0.65,1.0)*(spiral*0.9+core*0.65)+vec3(0.65,0.9,1.0)*rim;
- ALBEDO=glow;
- EMISSION=glow*pulse*1.5;
-}"""
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	disc.material_override = mat
-	add_child(disc)
-	disc.position = pos + Vector3(0,0,0.08)
-	temple_light(pos + Vector3(0,0,1.5),Color("37baff"),2.0,9.0)
-	var arcs := MeshInstance3D.new()
-	var arc_quad := QuadMesh.new()
-	arc_quad.size = Vector2(7.5,7.5)
-	arcs.mesh = arc_quad
-	var arc_shader := Shader.new()
-	arc_shader.code = """shader_type spatial;
-render_mode unshaded, cull_disabled, blend_add, depth_draw_never;
-void fragment(){
- vec2 p=UV*2.0-1.0;
- float r=length(p);
- float a=atan(p.y,p.x);
- float t=floor(TIME*12.0);
- float sector=floor((a+3.14159)*1.27324);
- float seed=fract(sin(sector*73.13+t*17.71)*43758.5453);
- float angle=(sector+0.5)*0.785398-3.14159;
- float zig=sin(r*65.0+seed*20.0)*0.035+sin(r*112.0+t)*0.015;
- float dist=abs(a-angle-zig);
- float arc=exp(-dist*180.0)*step(0.68,r)*step(r,0.76+seed*0.22)*step(0.35,seed);
- float sparks=pow(max(0.0,sin(a*43.0+t*2.0)*sin(r*93.0-t)),24.0)*step(0.69,r)*step(r,0.98);
- ALBEDO=vec3(0.25,0.7,1.0);
- EMISSION=vec3(0.55,0.85,1.0)*(arc*2.0+sparks);
- ALPHA=clamp(arc+sparks,0.0,1.0);
-}"""
-	var arc_mat := ShaderMaterial.new()
-	arc_mat.shader = arc_shader
-	arcs.material_override = arc_mat
-	add_child(arcs)
-	arcs.position = pos + Vector3(0,0,0.15)
-	# Portal surfaces are traversable; map transition is handled by proximity trigger.
+	# Portão japonês decorativo: não teleporta por proximidade.
+	# A viagem só acontece ao clicar no NPC guardião e confirmar.
+	var red := Color("8b2635")
+	var dark := Color("34242a")
+	var gold := Color("c5a15b")
+	for side in [-1.0,1.0]:
+		map_box("ToriiPillar",pos+Vector3(side*3.0,-1.0,0),Vector3(0.7,5.2,0.8),red,false)
+		map_box("ToriiFoot",pos+Vector3(side*3.0,-3.35,0),Vector3(1.25,0.45,1.25),dark,false)
+	map_box("ToriiCrossbeam",pos+Vector3(0,1.9,0),Vector3(8.0,0.65,1.05),dark,false)
+	map_box("ToriiTopBeam",pos+Vector3(0,2.45,0),Vector3(9.0,0.35,1.25),red,false)
+	map_box("ToriiGoldTrim",pos+Vector3(0,2.12,-0.56),Vector3(7.4,0.12,0.08),gold,false)
+	var sign := Label3D.new()
+	sign.text = "PORTÃO • FALE COM O GUARDIÃO"
+	sign.position = pos+Vector3(0,3.25,0)
+	sign.font_size = 28
+	sign.outline_size = 6
+	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	add_child(sign)
 func map_box(label: String, pos: Vector3, size: Vector3, color: Color, solid: bool = true) -> MeshInstance3D:
 	var body: Node3D = StaticBody3D.new() if solid else Node3D.new()
 	body.name = label
