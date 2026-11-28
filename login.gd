@@ -519,39 +519,30 @@ func show_selection(items: Array, legacy: String):
 	panel_style.content_margin_top = 14
 	panel_style.content_margin_bottom = 14
 
-	# Faixa superior no estilo de seleção de MMORPG.
-	var header := PanelContainer.new()
-	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	header.offset_left = 0
-	header.offset_right = 0
-	header.offset_top = 0
-	header.offset_bottom = 62
-	var header_style := StyleBoxFlat.new()
-	header_style.bg_color = Color("182332")
-	header_style.border_color = gold
-	header_style.border_width_bottom = 0
-	header.add_theme_stylebox_override("panel",header_style)
-	selection.add_child(header)
+	# Marca simples, centralizada e sem faixa/linha atravessando a prévia.
 	var heading := Label.new()
-	heading.text = "LOLPRO-ON     •     ESCOLHA SEU PERSONAGEM"
+	heading.text = "LOLPRO-ON"
+	heading.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	heading.offset_top = 12
+	heading.offset_bottom = 52
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_theme_font_size_override("font_size",25)
 	heading.add_theme_color_override("font_color",ivory)
-	header.add_child(heading)
+	selection.add_child(heading)
 
-	# Área principal: ficha à esquerda e personagem 3D em destaque à direita.
+	# Área principal: ficha compacta à esquerda e personagem 3D como foco.
 	var content := HBoxContainer.new()
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	content.offset_left = 22
-	content.offset_top = 82
-	content.offset_right = -22
-	content.offset_bottom = -12
+	content.offset_left = 18
+	content.offset_top = 58
+	content.offset_right = -18
+	content.offset_bottom = -10
 	content.add_theme_constant_override("separation",18)
 	selection.add_child(content)
 
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(330,0)
+	card.custom_minimum_size = Vector2(290,0)
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	card.add_theme_stylebox_override("panel",panel_style)
 	content.add_child(card)
@@ -622,12 +613,6 @@ func show_selection(items: Array, legacy: String):
 	stage_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage_panel.add_child(stage_box)
-	var stage_caption := Label.new()
-	stage_caption.text = "AVENTUREIRO"
-	stage_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stage_caption.add_theme_font_size_override("font_size",16)
-	stage_caption.add_theme_color_override("font_color",gold)
-	stage_box.add_child(stage_caption)
 	build_preview(stage_box)
 
 	var delete_button: Button
@@ -790,7 +775,7 @@ func start_loading():
 
 func build_preview(parent: VBoxContainer):
 	var container := SubViewportContainer.new()
-	container.custom_minimum_size = Vector2(0,180)
+	container.custom_minimum_size = Vector2(0,260)
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	container.stretch = true
 	parent.add_child(container)
@@ -814,8 +799,8 @@ func build_preview(parent: VBoxContainer):
 	preview_stage.add_child(light)
 	preview_camera = Camera3D.new()
 	preview_stage.add_child(preview_camera)
-	preview_camera.position = Vector3(0,1.2,2.7)
-	preview_camera.fov = 48.0
+	preview_camera.position = Vector3(0,1.35,3.25)
+	preview_camera.fov = 42.0
 	preview_camera.look_at(Vector3(0,0.95,0))
 	preview_camera.current = true
 	play_preview("Idle")
