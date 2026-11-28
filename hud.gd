@@ -512,8 +512,12 @@ func use_potion():
 		refresh()
 func _process(_delta):
 	if is_instance_valid(pet_model) and pet_model.visible:
-		var target: Vector3 = world.player.global_position + Vector3(1.2,0.6,1.0)
-		pet_model.global_position = pet_model.global_position.lerp(target,clampf(_delta*5.0,0.0,1.0))
+		var target: Vector3 = world.player.global_position + world.player.global_transform.basis * Vector3(1.2,1.0,1.0)
+		if pet_model.global_position.distance_to(target) > 12.0:
+			pet_model.global_position = target
+		else:
+			pet_model.global_position = pet_model.global_position.lerp(target,clampf(_delta*5.0,0.0,1.0))
+		pet_model.rotation.y = world.player.rotation.y
 	if is_instance_valid(preview_fx):
 		preview_time += _delta
 		preview_fx.rotate_y(_delta * 0.8)
@@ -634,15 +638,7 @@ func update_pet(data: Dictionary):
 		pet_model = Node3D.new()
 		world.add_child(pet_model)
 		pet_model.global_position = world.player.global_position
-		pet_part(Vector3.ZERO,Vector3(0.32,0.24,0.45),Color("d9a344"))
-		pet_part(Vector3(0,0.20,-0.25),Vector3(0.22,0.22,0.22),Color("f5ca69"))
-		pet_part(Vector3(-0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
-		pet_part(Vector3(0.32,0.12,0),Vector3(0.30,0.06,0.24),Color("b66a32"))
-		pet_part(Vector3(0,0,0.38),Vector3(0.09,0.09,0.35),Color("d9a344"))
-		pet_part(Vector3(-0.10,0.34,-0.25),Vector3(0.04,0.12,0.04),Color("f5e6c8"))
-		pet_part(Vector3(0.10,0.34,-0.25),Vector3(0.04,0.12,0.04),Color("f5e6c8"))
-		pet_part(Vector3(-0.09,0.23,-0.43),Vector3(0.035,0.035,0.035),Color("17151a"))
-		pet_part(Vector3(0.09,0.23,-0.43),Vector3(0.035,0.035,0.035),Color("17151a"))
+		preload("res://bone_pet.gd").attach(pet_model)
 		var aura := MeshInstance3D.new()
 		aura.name = "EvolutionAura"
 		var ring := TorusMesh.new()
@@ -667,16 +663,6 @@ func update_pet(data: Dictionary):
 		glow.emission = colors[stage]
 		glow.emission_energy_multiplier = 1.0+stage*0.5
 		pet_model.scale = Vector3.ONE * (1.0+float(lv-1)/100.0)
-func pet_part(pos: Vector3, sz: Vector3, color: Color):
-	var part := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	part.mesh = mesh
-	part.scale = sz*2.0
-	part.position = pos
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	part.material_override = mat
-	pet_model.add_child(part)
 
 func return_to_character_selection():
 	if is_instance_valid(world.net): world.net.leave()
