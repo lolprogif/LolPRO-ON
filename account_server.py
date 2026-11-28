@@ -255,7 +255,7 @@ class Handler(BaseHTTPRequestHandler):
       if seq and seq!=me['attack_seq']:
        me['attack_seq']=seq
        target_id=str(d.get('target_id',''))[:64]
-       if me['hp']>0 and me.get('free_combat',False) and now-me['last_attack']>=0.6:
+       if me['hp']>0 and target_id and now-me['last_attack']>=0.6:
         me['last_attack']=now
         for key,target in players.items():
          if key==row[0] or target['hp']<=0 or target.get('map_id','valoria')!=map_id: continue
