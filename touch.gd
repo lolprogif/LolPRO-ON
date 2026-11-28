@@ -103,7 +103,9 @@ func finish_edit():
 func _input(event):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			if editing and toolbar.get_global_rect().has_point(event.position): return
+			if editing and toolbar.get_global_rect().has_point(event.position):
+				get_viewport().set_input_as_handled()
+				return
 			var hit := ""
 			var nearest := INF
 			for key in defaults:
@@ -135,11 +137,12 @@ func _input(event):
 			positions[mouse_key] = event.position.clamp(Vector2(radius,radius),Vector2(maxf(radius,viewport_size.x-radius),maxf(radius,viewport_size.y-radius)))/viewport_size
 		elif mouse_key == "move":
 			world.touch_dir = ((event.position-fingers[-1][1])/float(radii[mouse_key])).limit_length()
-		fingers[-1][1] = event.position
 		get_viewport().set_input_as_handled()
 	elif event is InputEventScreenTouch:
 		if event.pressed:
-			if editing and toolbar.get_global_rect().has_point(event.position): return
+			if editing and toolbar.get_global_rect().has_point(event.position):
+				get_viewport().set_input_as_handled()
+				return
 			var hit := ""
 			var nearest := INF
 			for key in defaults:
