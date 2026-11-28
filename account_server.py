@@ -252,14 +252,19 @@ class Handler(BaseHTTPRequestHandler):
       seq=str(d.get('attack',''))[:80]
       if seq and seq!=me['attack_seq']:
        me['attack_seq']=seq
+       target_id=str(d.get('target_id',''))[:64]
        if me['hp']>0 and me.get('free_combat',False) and now-me['last_attack']>=0.6:
         me['last_attack']=now
         for key,target in players.items():
          if key==row[0] or target['hp']<=0: continue
+         if target_id and key!=target_id: continue
          dx,dy,dz=[target['pos'][i]-pos[i] for i in range(3)]
          dist=math.sqrt(dx*dx+dy*dy+dz*dz)
-         if 0.01<dist<=2.0 and (dx*math.sin(angle)+dz*math.cos(angle))/dist>0.3:
-          target['hp']=max(0,target['hp']-max(1,10+pa-pet_bonuses(target.get('pet',{}))[1]+(5+max(1,ranks.get('weapon',1))-1)*me['weapon']-(3+max(1,target.get('ranks',{}).get('armor',1))-1)*target.get('armor',0)))
+         in_range=dist<=3.0 if target_id else dist<=2.0
+         facing=(dx*math.sin(angle)+dz*math.cos(angle))/max(dist,0.001)
+         if 0.01<dist and in_range and (bool(target_id) or facing>0.3):
+          damage=max(1,10+pa-pet_bonuses(target.get('pet',{}))[1]+(5+max(1,ranks.get('weapon',1))-1)*me['weapon']-(3+max(1,target.get('ranks',{}).get('armor',1))-1)*target.get('armor',0))
+          target['hp']=max(0,target['hp']-damage)
           if target['hp']==0:
            target['respawn_at']=now+3
            me['xp']+=20; me['coins']+=5
