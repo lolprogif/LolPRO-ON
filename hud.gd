@@ -96,13 +96,6 @@ func _ready():
 	map_widget.offset_right = -12
 	map_widget.offset_top = 12
 	map_widget.offset_bottom = 154
-	coords = label(root,"X: 0  Z: 0")
-	coords.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	coords.offset_left = -154
-	coords.offset_right = -12
-	coords.offset_top = 157
-	coords.offset_bottom = 180
-	coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var map_button := button(root,"MAPA",func(): toggle("Mapa"))
 	map_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	map_button.offset_left = -124
@@ -430,6 +423,14 @@ func window(n: String, sz: Vector2, right := false) -> VBoxContainer:
 				drag_offset = root.get_local_mouse_position()-p.position
 				p.move_to_front()
 			else: drag_panel = null
+			l.accept_event()
+		elif event is InputEventScreenTouch:
+			if event.pressed:
+				drag_panel = p
+				drag_offset = event.position-p.position
+				p.move_to_front()
+			else:
+				drag_panel = null
 			l.accept_event())
 	button(h,"×",func(): p.hide())
 	var scroll := ScrollContainer.new()
@@ -516,8 +517,6 @@ func _process(_delta):
 		preview_fx.rotate_y(_delta * 0.8)
 		preview_fx.visible = preview_visible and preview_rank >= 4
 		preview_fx.scale = Vector3.ONE * (0.85 + float(preview_rank)*0.035 + sin(preview_time*3.0)*0.04)
-	if is_instance_valid(coords):
-		coords.text = "X: %.0f  Z: %.0f" % [world.player.position.x,world.player.position.z]
 func _unhandled_key_input(event):
 	if event.pressed and not event.echo:
 		if event.keycode == KEY_I: toggle("Inventário")
@@ -725,10 +724,13 @@ func _input(event):
 	if not is_instance_valid(drag_panel): return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		drag_panel = null
-	elif event is InputEventMouseMotion:
+	elif event is InputEventScreenTouch and not event.pressed:
+		drag_panel = null
+	elif event is InputEventMouseMotion or event is InputEventScreenDrag:
 		var p := drag_panel
 		var old_size := p.size
 		p.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 		p.size = old_size
-		p.position = (root.get_local_mouse_position()-drag_offset).clamp(Vector2.ZERO,Vector2(maxf(0,root.size.x-p.size.x),maxf(0,root.size.y-32)))
+		var pointer := root.get_local_mouse_position() if event is InputEventMouseMotion else event.position
+		p.position = (pointer-drag_offset).clamp(Vector2.ZERO,Vector2(maxf(0,root.size.x-p.size.x),maxf(0,root.size.y-32)))
 		get_viewport().set_input_as_handled()
