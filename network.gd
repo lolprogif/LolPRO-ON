@@ -174,7 +174,12 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 	if r.state == state and r.get("avatar","") == avatar: return
 	if is_instance_valid(r.model): r.model.queue_free()
 	var model_path: String = str({"sura":"res://sura_male_novice.glb","warrior_m":"res://warrior_m_4-1.glb","secret_agent":"res://assets/The_Secret_Agent.glb","erika_archer":"res://assets/erika_archer.fbx","maria":"res://assets/maria.fbx"}.get(avatar,"res://assets/"+state+".fbx"))
-	var model = load(model_path).instantiate()
+	var packed = load(model_path)
+	if not packed is PackedScene:
+		push_warning("Modelo remoto não importado: "+model_path)
+		return
+	var model := packed.instantiate() as Node3D
+	if model == null: return
 	r.avatar = avatar
 	r.node.add_child(model)
 	r.model = model
@@ -182,12 +187,25 @@ func update_remote(id,pos: Vector3,angle: float,state: String,display_name: Stri
 	var aps = model.find_children("*","AnimationPlayer",true,false)
 	if not aps.is_empty():
 		var ap: AnimationPlayer = aps[0]
+		var wanted := {"Idle":["idle-loop","idle"],"Walking":["walk-loop","walking","walk"],"Running":["run-loop","running","run"],"Jumping":["jump","jumping"]}.get(state,[])
+		var chosen := ""
 		for clip in ap.get_animation_list():
 			if clip == "RESET": continue
-			world.remove_horizontal_motion(ap,clip,state == "Jumping")
-			ap.get_animation(clip).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
-			ap.play(clip)
-			break
+			var clip_name := String(clip).to_lower().replace("_"," ").replace("-"," ")
+			for candidate in wanted:
+				if clip_name.contains(candidate.replace("-"," ")):
+					chosen = String(clip)
+					break
+			if not chosen.is_empty(): break
+		if chosen.is_empty():
+			for clip in ap.get_animation_list():
+				if clip != "RESET":
+					chosen = String(clip)
+					break
+		if not chosen.is_empty():
+			world.remove_horizontal_motion(ap,chosen,state == "Jumping")
+			ap.get_animation(chosen).loop_mode = Animation.LOOP_NONE if state == "Jumping" else Animation.LOOP_LINEAR
+			ap.play(chosen)
 
 func cloud_done(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray):
 	if not cloud_active: return
