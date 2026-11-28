@@ -534,13 +534,14 @@ func attack():
 	if target_distance > 0.05:
 		player.rotation.y = atan2(target_offset.x,target_offset.z)
 	attack_cooldown = 0.6
-	if free_combat and is_instance_valid(net):
+	if is_instance_valid(net) and net.cloud_active:
 		var target_id := ""
 		for id in net.remotes:
 			if net.remotes[id].get("node") == combat_target:
 				target_id = str(id)
 				break
-		net.request_attack(target_id)
+		if not target_id.is_empty():
+			net.request_attack(target_id)
 	if using_brute or using_agent:
 		brute_attack_index += 1
 		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
