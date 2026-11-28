@@ -12,6 +12,7 @@ var camera := Camera3D.new()
 var models := {}
 var brute_motion_paths := {}
 var using_brute := false
+var using_agent := false
 var brute_attack_index := 0
 var current := ""
 var admin_animation_until: int = 0
@@ -98,7 +99,17 @@ func _ready():
 	player.add_child(col)
 	var avatar_id := str(get_tree().get_meta("selected_avatar","whiteclown"))
 	if avatar_id == "warrior_m": avatar_id = "sura"
-	if avatar_id in ["whiteclown","sura"]:
+	if avatar_id == "sura" and ResourceLoader.exists("res://assets/The_Secret_Agent.glb"):
+		var agent_scene = load("res://assets/The_Secret_Agent.glb")
+		if agent_scene is PackedScene:
+			var agent: Node3D = agent_scene.instantiate() as Node3D
+			if agent != null:
+				player.add_child(agent)
+				models["Avatar"] = agent
+				using_agent = true
+	if using_agent:
+		pass
+	elif avatar_id in ["whiteclown","sura"]:
 		# Carrega somente o Idle ao entrar. Caminhada, corrida e ataques são
 		# carregados sob demanda para reduzir o pico de memória no Windows.
 		using_brute = true
@@ -199,6 +210,18 @@ func animate(state):
 		if not anim.is_empty():
 			var ap: AnimationPlayer = anim[0]
 			var desired := ""
+			if using_agent:
+				var wanted: String = str({"Idle":"Idle-loop","Walking":"Walk-loop","Running":"Run-loop","Jumping":"Jump","Attack1":"Sword slash","Attack2":"Sword thrust"}.get(state,"Idle-loop"))
+				for clip in ap.get_animation_list():
+					if String(clip).get_file().to_lower().replace("_"," ").replace("-"," ") == wanted.to_lower().replace("-"," "):
+						desired = String(clip)
+						break
+				if not desired.is_empty():
+					var one_shot: bool = state in ["Jumping","Attack1","Attack2"]
+					ap.get_animation(desired).loop_mode = Animation.LOOP_NONE if one_shot else Animation.LOOP_LINEAR
+					remove_horizontal_motion(ap, desired, state == "Jumping")
+					ap.play(desired, 0.12)
+					return
 			var candidates := {"Idle":["Intro_wait","onehand_idle","Idle","idle","Standing","FreeRunning"],"Walking":["Walking","Walk","walking","Run","FreeRunning"],"Running":["Running","Run","FreeRunning"],"Jumping":["Jumping","Jump","jump","Idle","idle","Intro_wait"]}
 			for candidate in candidates.get(state,["FreeRunning"]):
 				if ap.has_animation(candidate):
@@ -506,7 +529,7 @@ func attack():
 				target_id = str(id)
 				break
 		net.request_attack(target_id)
-	if using_brute:
+	if using_brute or using_agent:
 		brute_attack_index += 1
 		var next_attack := "Attack1" if brute_attack_index % 2 == 1 else "Attack2"
 		animate(next_attack)
