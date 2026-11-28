@@ -230,6 +230,8 @@ func _ready():
 		chat_bubble.text = spoken.left(80)
 		chat_bubble.visible = true
 		chat_bubble_timer.start()
+		if is_instance_valid(world.net) and world.net.has_method("send_chat"):
+			world.net.send_chat(spoken)
 		entry.clear()
 		entry.release_focus()
 		cp.hide())
