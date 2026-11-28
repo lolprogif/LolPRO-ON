@@ -1,0 +1,1 @@
+Build de teste do pacote Windows solicitado para validar a entrada do personagem no computador. Esta compilação não representa uma correção confirmada do fechamento; serve para teste controlado da versão atual do projeto.
